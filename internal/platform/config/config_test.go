@@ -29,6 +29,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Storage.PostgresURL == "" {
 		t.Fatal("PostgresURL should not be empty")
 	}
+	if cfg.Auth.SigningKey == "" {
+		t.Fatal("Auth.SigningKey should not be empty")
+	}
 }
 
 func TestLoadUsesServiceSpecificOverrides(t *testing.T) {
@@ -36,6 +39,7 @@ func TestLoadUsesServiceSpecificOverrides(t *testing.T) {
 	t.Setenv("AUTOCERTX_REDIS_URL", "redis://localhost:6379/9")
 	t.Setenv("AGENT_HTTP_ADDR", ":19081")
 	t.Setenv("AGENT_HTTP_SHUTDOWN_TIMEOUT", "15s")
+	t.Setenv("AGENT_AUTH_ACCESS_TOKEN_TTL", "30m")
 
 	cfg, err := Load(LoadOptions{
 		ServiceName:     "agent",
@@ -57,5 +61,8 @@ func TestLoadUsesServiceSpecificOverrides(t *testing.T) {
 	}
 	if cfg.Storage.RedisURL != "redis://localhost:6379/9" {
 		t.Fatalf("RedisURL = %q, want override", cfg.Storage.RedisURL)
+	}
+	if cfg.Auth.AccessTokenTTL != 30*time.Minute {
+		t.Fatalf("AccessTokenTTL = %v, want %v", cfg.Auth.AccessTokenTTL, 30*time.Minute)
 	}
 }

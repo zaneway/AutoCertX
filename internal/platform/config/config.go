@@ -23,12 +23,19 @@ type StorageConfig struct {
 	RedisURL    string
 }
 
+type AuthConfig struct {
+	SigningKey      string
+	AccessTokenTTL  time.Duration
+	RefreshTokenTTL time.Duration
+}
+
 type Config struct {
 	ServiceName string
 	Environment string
 	LogLevel    string
 	HTTP        HTTPConfig
 	Storage     StorageConfig
+	Auth        AuthConfig
 }
 
 type LoadOptions struct {
@@ -55,6 +62,11 @@ func Load(opts LoadOptions) (Config, error) {
 			PostgresURL: lookupString(prefix, "POSTGRES_URL", "postgres://autocertx:autocertx@localhost:5432/autocertx?sslmode=disable"),
 			RedisURL:    lookupString(prefix, "REDIS_URL", "redis://localhost:6379/0"),
 		},
+		Auth: AuthConfig{
+			SigningKey:      lookupString(prefix, "AUTH_SIGNING_KEY", "autocertx-dev-signing-key"),
+			AccessTokenTTL:  lookupDuration(prefix, "AUTH_ACCESS_TOKEN_TTL", 15*time.Minute),
+			RefreshTokenTTL: lookupDuration(prefix, "AUTH_REFRESH_TOKEN_TTL", 24*time.Hour),
+		},
 	}
 
 	if cfg.ServiceName == "" {
@@ -65,6 +77,15 @@ func Load(opts LoadOptions) (Config, error) {
 	}
 	if cfg.HTTP.ShutdownTimeout <= 0 {
 		return Config{}, fmt.Errorf("http shutdown timeout must be positive")
+	}
+	if strings.TrimSpace(cfg.Auth.SigningKey) == "" {
+		return Config{}, fmt.Errorf("auth signing key required")
+	}
+	if cfg.Auth.AccessTokenTTL <= 0 {
+		return Config{}, fmt.Errorf("auth access token ttl must be positive")
+	}
+	if cfg.Auth.RefreshTokenTTL <= 0 {
+		return Config{}, fmt.Errorf("auth refresh token ttl must be positive")
 	}
 
 	return cfg, nil

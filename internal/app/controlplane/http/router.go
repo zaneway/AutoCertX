@@ -6,6 +6,10 @@ import (
 	"time"
 
 	"github.com/zaneway/AutoCertX/internal/app/controlplane/middleware"
+	authcommand "github.com/zaneway/AutoCertX/internal/application/command/auth"
+	caaccountscmd "github.com/zaneway/AutoCertX/internal/application/command/caaccounts"
+	domainscmd "github.com/zaneway/AutoCertX/internal/application/command/domains"
+	authcontextquery "github.com/zaneway/AutoCertX/internal/application/query/authcontext"
 	"github.com/zaneway/AutoCertX/internal/platform/buildinfo"
 	"github.com/zaneway/AutoCertX/internal/platform/config"
 	"github.com/zaneway/AutoCertX/internal/platform/httpx"
@@ -13,9 +17,13 @@ import (
 
 // Deps contains the dependencies required to build the control plane router.
 type Deps struct {
-	Config    config.Config
-	BuildInfo buildinfo.Info
-	Logger    *slog.Logger
+	Config            config.Config
+	BuildInfo         buildinfo.Info
+	Logger            *slog.Logger
+	AuthService       *authcommand.Service
+	AuthContextQuery  *authcontextquery.Service
+	DomainCommands    *domainscmd.Service
+	CAAccountCommands *caaccountscmd.Service
 }
 
 type healthResponse struct {
@@ -45,6 +53,13 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
 		writeHealth(w, deps)
 	})
+	if deps.AuthService != nil && deps.AuthContextQuery != nil {
+		registerAuthRoutes(mux, authHandler{
+			authService:        deps.AuthService,
+			authContextService: deps.AuthContextQuery,
+		})
+	}
+	registerGovernanceRoutes(mux, deps)
 
 	return middleware.Chain(
 		mux,

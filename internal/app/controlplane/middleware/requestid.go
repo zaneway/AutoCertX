@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sync/atomic"
@@ -10,6 +11,8 @@ import (
 const requestIDHeader = "X-Request-Id"
 
 var requestIDCounter atomic.Uint64
+
+type requestIDContextKey struct{}
 
 // RequestID attaches a stable request identifier to each response.
 func RequestID() Middleware {
@@ -21,9 +24,15 @@ func RequestID() Middleware {
 			}
 
 			w.Header().Set(requestIDHeader, requestID)
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestIDContextKey{}, requestID)))
 		})
 	}
+}
+
+// RequestIDFromContext returns the request ID injected by RequestID middleware.
+func RequestIDFromContext(ctx context.Context) string {
+	requestID, _ := ctx.Value(requestIDContextKey{}).(string)
+	return requestID
 }
 
 func nextRequestID() string {
