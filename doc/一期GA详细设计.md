@@ -3357,10 +3357,8 @@ Redis 不用于：
 - `仪表盘`
 - `域名管理`
 - `证书资产`
-- `证书申请`
 - `CA 账户`
-- `部署目标`
-- `节点管理`
+- `交付管理`
 - `发现结果`
 - `作业中心`
 - `审计`
@@ -3439,6 +3437,7 @@ Redis 不用于：
 
 - 当前版本
 - 证书元数据
+- 申请入口
 - 绑定目标
 - 最近续期
 - 最近部署
@@ -3448,12 +3447,14 @@ Redis 不用于：
 核心功能：
 
 - 查看资产全景
+- 从资产工作台发起申请
 - 手动触发续期
 - 查看版本、部署、发现和审计
 
 主流程：
 
 - 进入详情查看当前版本与目标绑定
+- 从列表页或详情页进入申请向导
 - 查看部署失败原因
 - 触发续期并跳转作业中心
 
@@ -3469,9 +3470,47 @@ Redis 不用于：
 
 - `CertificateAsset`
 - `CertificateVersion`
+- `CertificateRequest`
 - `IssueWorkflow`
 - `DeploymentRecord`
 - `DiscoveryRecord`
+
+#### `DeliveryWorkspace`
+
+展示：
+
+- 在线节点数 / 异常节点数
+- 部署目标数
+- 最近部署失败数
+- 最近发现异常数
+- 部署目标列表
+- 节点列表
+
+核心功能：
+
+- 统一承载部署目标治理与节点治理
+- 提供交付视角的摘要、筛选和跳转入口
+- 保持导航合并，但不合并后端对象模型
+
+主流程：
+
+- 进入交付管理首页
+- 在 `部署目标` 与 `节点管理` 页签间切换
+- 从目标详情跳节点，从节点详情看最近任务和发现
+
+依赖服务：
+
+- `DeploymentTargetService`
+- `AgentService`
+- `AgentDispatchService`
+- `JobService`
+- `DetailQueryService`
+
+关联状态机：
+
+- `DeploymentTarget`
+- `AgentNode`
+- `NodeRegistrationToken`
 
 #### `JobDetail`
 
@@ -3598,15 +3637,9 @@ Redis 不用于：
 
 #### 证书资产
 
-- 核心功能：资产列表、版本历史、部署关系、发现关系、续期入口
-- 核心流程：查看资产 -> 排障 -> 续期
-- 依赖模块：`CertificateAssetService`、`IssueWorkflowService`、`DeploymentService`
-
-#### 证书申请
-
-- 核心功能：创建申请单、选择域名/CA/challenge/目标
-- 核心流程：填写表单 -> 校验 -> 创建 `CertificateRequest` -> 创建工作流
-- 依赖模块：`CertificateRequestService`、`DomainService`、`CAAccountService`
+- 核心功能：资产列表、版本历史、部署关系、发现关系、申请入口、续期入口
+- 核心流程：查看资产 -> 发起申请或排障 -> 续期
+- 依赖模块：`CertificateAssetService`、`CertificateRequestService`、`IssueWorkflowService`、`DeploymentService`
 
 #### CA 账户
 
@@ -3614,17 +3647,11 @@ Redis 不用于：
 - 核心流程：创建账户 -> 探测状态 -> 选择用于签发
 - 依赖模块：`CAAccountService`、`IssuerService`
 
-#### 部署目标
+#### 交付管理
 
-- 核心功能：配置 `NGINX / Tomcat` 目标、绑定资产
-- 核心流程：创建目标 -> 配置路径/选择器 -> 绑定资产
-- 依赖模块：`DeploymentTargetService`、`DeploymentService`
-
-#### 节点管理
-
-- 核心功能：注册、停用、查看能力、查看任务与发现
-- 核心流程：生成令牌 -> 注册 -> 查看健康 -> 停用
-- 依赖模块：`AgentService`、`AgentDispatchService`
+- 核心功能：统一承载 `部署目标` 与 `节点管理` 两类治理页面
+- 核心流程：进入交付管理 -> 选择部署目标或节点页签 -> 进入详情 -> 联动作业与发现排障
+- 依赖模块：`DeploymentTargetService`、`DeploymentService`、`AgentService`、`AgentDispatchService`
 
 #### 发现结果
 
@@ -3656,7 +3683,7 @@ Redis 不用于：
 
 #### 链路 A：域名治理到申请
 
-- `域名管理 -> 证书申请 -> 作业中心 -> 证书资产`
+- `域名管理 -> 证书资产(发起申请) -> 作业中心 -> 证书资产`
 
 说明：
 
@@ -3664,15 +3691,15 @@ Redis 不用于：
 
 #### 链路 B：签发到部署
 
-- `证书申请 -> 作业中心 -> 节点管理 -> 证书资产`
+- `证书资产(发起申请) -> 作业中心 -> 交付管理 -> 证书资产`
 
 #### 链路 C：运行中发现与纠偏
 
-- `节点管理 -> 发现结果 -> 证书资产 -> 作业中心`
+- `交付管理 -> 发现结果 -> 证书资产 -> 作业中心`
 
 #### 链路 D：治理与排障
 
-- `仪表盘 -> 作业中心 -> 审计 -> 节点管理 -> 域名管理`
+- `仪表盘 -> 作业中心 -> 审计 -> 交付管理 -> 域名管理`
 
 ## 20. 安全设计
 
@@ -3888,6 +3915,6 @@ Agent 必须受以下白名单限制：
 - `DNS-01` 由控制面执行，`HTTP-01` 由 Agent 执行
 - `PostgreSQL` 作为业务事实源，`Redis` 只做辅助
 - `jobs + job_attempts + SKIP LOCKED + lease` 作为调度主机制
-- 域名管理、证书资产、节点管理、作业中心作为控制台四个核心治理入口
+- 域名管理、证书资产、交付管理、作业中心作为控制台四个核心治理入口
 
 这套设计能够直接支撑一期 GA 落地，同时为后续 `SM2`、私有 `ACME` 扩展、多 CA 与多连接器演进保留稳定抽象。
