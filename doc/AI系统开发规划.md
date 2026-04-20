@@ -1,4 +1,4 @@
-# AutoCertX AI 并行研发执行规划 V3.0
+# AutoCertX AI 并行研发执行规划 V3.1
 
 - 编写日期：2026-04-20
 - 适用范围：一期 GA 并行研发组织、任务拆分、自动化验收、集成门禁
@@ -19,6 +19,11 @@
 - `doc/前端页面设计.md` 冻结控制台信息架构、一级导航、页面职责和前端页面验收口径。
 - `doc/后端代码结构评估与重构建议.md` 约束后端代码结构必须采用“分层 + Query 聚合”的组织方式。
 - 本文档不再讨论需求取舍，目标是把上述输入转换为“可由多个 AI 并行执行”的研发计划和验收规则。
+- 当前执行进度：
+  - `Wave 0` 已完成
+  - `Wave 1` 已完成
+  - `Wave 2` 进行中
+  - 其中 `T03`、`T04`、`T05` 已完成基线实现
 
 ## 1. 文档目标
 
@@ -218,28 +223,28 @@ internal/
 
 ### 5.1 波次划分
 
-- `Wave 0`
+- `Wave 0（已完成）`
   - `T00`
-- `Wave 1`
+- `Wave 1（已完成）`
   - `T01`
   - `T02`
-- `Wave 2`
+- `Wave 2（进行中）`
   - `T03`
   - `T04`
   - `T05`
   - `T06`
   - `T13`
-- `Wave 3`
+- `Wave 3（待开始）`
   - `T07`
   - `T08`
   - `T09`
   - `T14`
-- `Wave 4`
+- `Wave 4（待开始）`
   - `T10`
   - `T11`
   - `T12`
   - `T15`
-- `Wave 5`
+- `Wave 5（待开始）`
   - `T16`
 
 ### 5.2 依赖图
@@ -304,7 +309,29 @@ flowchart LR
     T15 --> T16
 ```
 
-### 5.3 推荐 AI 分工
+### 5.3 当前执行状态
+
+| 任务   | 名称                          | 波次     | 状态   | 已完成结果 |
+| ---- | --------------------------- | ------ | ---- | ------ |
+| `T00` | 工程骨架与规范冻结                  | `Wave 0` | 已完成 | 控制面装配骨架、最小可运行 Make 工具链、基础中间件与测试基线已落地，`make ci-task-T00` 已通过 |
+| `T01` | SQL、迁移与 Repository 基线      | `Wave 1` | 已完成 | `migrations/0001_init_schema.sql`、`internal/repository/postgres` 基线、`scripts/verify_ddl.sh` 已落地，`make ci-task-T01` 已通过 |
+| `T02` | OpenAPI、错误码与共享契约           | `Wave 1` | 已完成 | `api/openapi/openapi.json`、`errors.json`、契约测试已落地，`make ci-task-T02` 已通过 |
+| `T03` | 身份、租户上下文与 RBAC             | `Wave 2` | 已完成 | 身份、租户上下文、权限中间件、语言偏好与 `/api/v1/auth/*` 基线已落地，`make ci-task-T03` 已通过 |
+| `T04` | 域名、DNS 凭据与 CA 账户治理         | `Wave 2` | 已完成 | 域名、DNS 凭据、CA 账户治理服务与 `/api/v1/domains`、`/api/v1/dns-credentials`、`/api/v1/ca-accounts` 基线已落地，`make ci-task-T04` 已通过 |
+| `T05` | Job、Lease 与 Scheduler      | `Wave 2` | 已完成 | `job` 域模型、planner/worker/reaper、PostgreSQL `SKIP LOCKED` 仓储、数据库级集成验证与 `make ci-task-T05` 已落地并通过 |
+| `T06` | 审计、证据、系统设置与 Webhook       | `Wave 2` | 未开始 | 等待执行 |
+| `T07` | 聚合查询层与控制台读模型               | `Wave 3` | 未开始 | 等待执行 |
+| `T08` | ACME、签发工作流与 Challenge 编排   | `Wave 3` | 未开始 | 等待执行 |
+| `T09` | Agent 管理、部署目标治理与协议         | `Wave 3` | 未开始 | 等待执行 |
+| `T10` | NGINX 部署与验证                | `Wave 4` | 未开始 | 等待执行 |
+| `T11` | Tomcat 部署与验证               | `Wave 4` | 未开始 | 等待执行 |
+| `T12` | 发现与认领                      | `Wave 4` | 未开始 | 等待执行 |
+| `T13` | Vue 壳层与共享前端能力              | `Wave 2` | 未开始 | 等待执行 |
+| `T14` | 前端治理页                      | `Wave 3` | 未开始 | 等待执行 |
+| `T15` | 前端运行页                      | `Wave 4` | 未开始 | 等待执行 |
+| `T16` | 集成、E2E、CI、发布               | `Wave 5` | 未开始 | 等待执行 |
+
+### 5.4 推荐 AI 分工
 
 | AI 角色                | 推荐承接任务                    |
 | -------------------- | ------------------------- |
@@ -329,6 +356,7 @@ flowchart LR
 
 ### T00 工程骨架与规范冻结
 
+- 执行状态：已完成（2026-04-20）
 - 任务目标：
   - 建立目标目录结构
   - 冻结基础 Make 目标、测试约定、配置约定、日志/错误处理基线
@@ -339,9 +367,14 @@ flowchart LR
   - `internal/app/controlplane/`
   - 根级 `Makefile`
 - 关键交付物：
-  - 控制面和 Agent 的基础启动骨架
-  - 统一配置加载、日志、错误包装、HTTP 中间件骨架
-  - `make fmt` `make lint` `make test-unit` `make ci-task-T00`
+  - `cmd/controlplane` 已切换到 `internal/app/controlplane/bootstrap`
+  - `internal/app/controlplane/{bootstrap,http,middleware,wiring}` 最小装配骨架
+  - `internal/platform/httpx` 与 `internal/platform/runtime.Serve` 通用运行时封装
+  - 本地缓存隔离的 `make fmt` `make lint` `make test-unit` `make ci-task-T00`
+  - `router`、`wiring` 的最小单元测试
+- 实现差异说明：
+  - `T00` 的 `lint` 基线当前采用 `go vet`，未在此阶段引入 `golangci-lint` 或 `staticcheck`
+  - `T00` 只冻结控制面装配壳层，未在此阶段展开 `internal/domain`、`internal/application` 业务代码
 - 验收要求：
   - 仓库可完成基础编译
   - 目录结构与 `doc/后端代码结构评估与重构建议.md` 对齐
@@ -352,6 +385,7 @@ flowchart LR
 
 ### T01 SQL、迁移与 Repository 基线
 
+- 执行状态：已完成（2026-04-20）
 - 任务目标：
   - 将 `sql/001_init_schema.sql` 转换为可执行迁移
   - 建立 PostgreSQL Repository 基线和测试夹具
@@ -361,9 +395,13 @@ flowchart LR
   - `migrations/`
   - `internal/repository/`
 - 关键交付物：
-  - 初始迁移
-  - `set_updated_at` 触发器、索引、必要种子数据
-  - 仓库级数据库测试基线
+  - `migrations/0001_init_schema.sql` 初始迁移包装文件
+  - `internal/repository/postgres/manifest.go` 迁移清单
+  - `internal/repository/postgres/manifest_test.go` 静态校验基线
+  - `scripts/verify_ddl.sh` 真库初始化校验脚本
+- 实现差异说明：
+  - `T01` 当前完成的是“迁移与仓储基线冻结”，尚未在此阶段展开具体 domain repository 实现
+  - DDL 真库校验采用隔离的 `docker compose -p <project>` 方式执行，并沿用当前仓库的 `postgres:latest` 开发依赖版本
 - 验收要求：
   - 空库可以完整初始化
   - 所有表包含 `id`、`created_at`、`updated_at`
@@ -375,6 +413,7 @@ flowchart LR
 
 ### T02 OpenAPI、错误码与共享契约
 
+- 执行状态：已完成（2026-04-20）
 - 任务目标：
   - 冻结控制面 REST API、Agent 协议、错误码和共享 DTO
 - 前置依赖：`T00`
@@ -382,9 +421,13 @@ flowchart LR
   - `api/openapi/`
   - 共享错误码/DTO
 - 关键交付物：
-  - OpenAPI 初版
-  - Agent 注册、心跳、取任务、回传结果契约
-  - 统一错误响应格式
+  - `api/openapi/openapi.json` 一期 OpenAPI 初版
+  - `api/openapi/errors.json` 共享错误码目录
+  - `api/openapi/contracts_test.go` 契约覆盖与静态校验
+  - `api/openapi/README.md` 契约冻结说明
+- 实现差异说明：
+  - 契约当前以 `JSON + Go 测试` 形式冻结，未在 `T02` 阶段生成 SDK 或代码生成 DTO
+  - Agent 协议基线统一为 `REST + JSON + POST-only` 写接口，和详细设计保持一致
 - 验收要求：
   - 契约覆盖一期一级导航对应页面和核心运行链路
   - 错误码具备稳定语义，不把中文直接写入协议字段
@@ -396,6 +439,7 @@ flowchart LR
 
 ### T03 身份、租户上下文与 RBAC
 
+- 执行状态：已完成（2026-04-20）
 - 任务目标：
   - 完成账号密码登录、刷新、退出、当前用户上下文、RBAC 校验
 - 前置依赖：`T01` `T02`
@@ -405,10 +449,16 @@ flowchart LR
   - `internal/application/command/auth/`
   - `internal/application/query/authcontext/`
 - 关键交付物：
-  - 登录/登出/刷新 token
-  - 租户/项目/环境上下文切换
-  - 角色绑定和权限判定中间件
-  - 用户语言偏好存取
+  - `internal/domain/identity` 身份、密码散列、token、session 基线
+  - `internal/domain/tenancy` 多租户上下文解析、角色绑定和权限模型
+  - `internal/application/command/auth` 登录、刷新、登出、语言偏好更新
+  - `internal/application/query/authcontext` 顶栏上下文与 locale 读模型
+  - `/api/v1/auth/login`、`/refresh`、`/logout`、`/me`、`/me/preferences` 路由与测试
+- 验证结果：
+  - `make ci-task-T03` 已通过
+- 实现差异说明：
+  - 当前实现以 `identity.NewMemoryStore` 和 `tenancy.NewMemoryStore` 为运行时基线，尚未接入 PostgreSQL repository
+  - 当前交付的是“一期身份/RBAC 可运行基线”，后续若引入真实 repository，不应改变当前 API 和权限语义
 - 验收要求：
   - 受保护 API 必须做鉴权和权限校验
   - 多租户隔离正确
@@ -420,6 +470,7 @@ flowchart LR
 
 ### T04 域名、DNS 凭据与 CA 账户治理
 
+- 执行状态：已完成（2026-04-20）
 - 任务目标：
   - 建立域名资产、DNS 凭据、CA 账户和能力元数据的治理能力
 - 前置依赖：`T01` `T02`
@@ -430,10 +481,16 @@ flowchart LR
   - `internal/application/command/domains/`
   - `internal/application/command/caaccounts/`
 - 关键交付物：
-  - 域名管理 API
-  - 阿里云 DNS 凭据管理 API
-  - Let's Encrypt CA 账户管理 API
-  - 域名级验证状态、TXT 操作历史模型
+  - `internal/domain/domains` 域名治理模型与 TXT/验证/关联资产读模型
+  - `internal/domain/dnscredentials` 阿里云 DNS 凭据治理模型
+  - `internal/domain/issuer` Let's Encrypt/ACME 账户和能力元数据模型
+  - `internal/application/command/domains`、`caaccounts` 命令服务
+  - `/api/v1/domains`、`/api/v1/dns-credentials`、`/api/v1/ca-accounts` 路由与测试
+- 验证结果：
+  - `make ci-task-T04` 已通过
+- 实现差异说明：
+  - 当前域名、DNS 凭据和 CA 账户治理均采用内存实现，尚未接入 PostgreSQL repository
+  - 审计当前通过 `AuditRecorder` 钩子占位记录，真正统一落审计域仍依赖 `T06`
 - 验收要求：
   - CA 列表和能力必须从后端返回
   - 域名和 DNS 凭据操作纳入审计
@@ -445,6 +502,7 @@ flowchart LR
 
 ### T05 Job、Lease 与 Scheduler
 
+- 执行状态：已完成（2026-04-20）
 - 任务目标：
   - 建立 `jobs + job_attempts + SKIP LOCKED + lease` 调度基线
 - 前置依赖：`T01` `T02`
@@ -453,9 +511,19 @@ flowchart LR
   - `internal/scheduler/`
   - `internal/application/command/jobs/`
 - 关键交付物：
-  - claim/lease/reaper/retry/backoff
-  - 作业状态流转
-  - 续期扫描与发现计划任务基线
+  - `internal/domain/job` 作业与 attempt 状态模型
+  - `internal/application/command/jobs` claim/lease/retry/backoff 服务
+  - `internal/scheduler` planner/worker/reaper 基线
+  - `MemoryRepository` 参考实现和对应测试
+  - `internal/repository/postgres/jobstore` PostgreSQL `SKIP LOCKED` 仓储实现
+  - `scripts/test_scheduler_integration.sh` 数据库级集成验证脚本
+- 验证结果：
+  - `make ci-task-T05` 已通过
+  - `make test-integration-scheduler` 已通过
+- 实现说明：
+  - 并发 claim 通过 PostgreSQL 短事务 `FOR UPDATE SKIP LOCKED` 完成
+  - lease renew/complete/reap 都在 repository 事务中维护 `jobs + job_attempts` 一致性
+  - 内存仓储保留为调度域单测基线，PostgreSQL 仓储承担数据库级真实验证
 - 验收要求：
   - 多副本并发 claim 不重复消费
   - worker 崩溃后 lease 能被回收
