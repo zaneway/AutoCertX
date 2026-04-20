@@ -1,0 +1,1789 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AutoCertX Control Plane and Agent API",
+    "version": "1.0.0-t02",
+    "description": "Initial frozen API contract for GA phase one. Covers control plane REST APIs, agent REST protocol, and shared error semantics."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "tags": [
+    { "name": "auth" },
+    { "name": "domains" },
+    { "name": "certificate-assets" },
+    { "name": "ca-accounts" },
+    { "name": "dns-credentials" },
+    { "name": "delivery" },
+    { "name": "jobs" },
+    { "name": "discoveries" },
+    { "name": "audit" },
+    { "name": "dashboard" },
+    { "name": "settings" },
+    { "name": "agent" }
+  ],
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "operationId": "login",
+        "summary": "Login with username and password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuthLoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login success",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthLoginResponse" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": ["auth"],
+        "operationId": "logout",
+        "summary": "Logout current session",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Logout success",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EmptyEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": ["auth"],
+        "operationId": "getAuthContext",
+        "summary": "Get current user context",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Current user context",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthMeResponse" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/auth/me/preferences": {
+      "patch": {
+        "tags": ["auth"],
+        "operationId": "updateUserPreferences",
+        "summary": "Update current user preferences",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LocalePreferencesRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated user context",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthMeResponse" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/domains": {
+      "get": {
+        "tags": ["domains"],
+        "operationId": "listDomains",
+        "summary": "List domain assets",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Domain asset list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      },
+      "post": {
+        "tags": ["domains"],
+        "operationId": "createDomain",
+        "summary": "Create domain asset",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DomainUpsertRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created domain asset",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/domains/{id}": {
+      "get": {
+        "tags": ["domains"],
+        "operationId": "getDomain",
+        "summary": "Get domain asset detail",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "200": {
+            "description": "Domain asset detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      },
+      "put": {
+        "tags": ["domains"],
+        "operationId": "updateDomain",
+        "summary": "Update domain asset",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DomainUpsertRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated domain asset",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/domains/{id}/bind-dns-credential": {
+      "post": {
+        "tags": ["domains"],
+        "operationId": "bindDomainDNSCredential",
+        "summary": "Bind DNS credential to domain asset",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DomainDNSBindingRequest" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Binding accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AcceptedEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/domains/{id}/validation-records": {
+      "get": {
+        "tags": ["domains"],
+        "operationId": "listDomainValidationRecords",
+        "summary": "List domain validation records",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "200": {
+            "description": "Validation record list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/domains/{id}/txt-operations": {
+      "get": {
+        "tags": ["domains"],
+        "operationId": "listDomainTXTOperations",
+        "summary": "List TXT record operations",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "200": {
+            "description": "TXT operation list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/domains/{id}/certificate-assets": {
+      "get": {
+        "tags": ["domains"],
+        "operationId": "listDomainCertificateAssets",
+        "summary": "List certificate assets related to a domain",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "200": {
+            "description": "Certificate asset list for domain",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/certificate-assets": {
+      "get": {
+        "tags": ["certificate-assets"],
+        "operationId": "listCertificateAssets",
+        "summary": "List certificate assets",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Certificate asset list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/certificate-assets/requests": {
+      "post": {
+        "tags": ["certificate-assets"],
+        "operationId": "createCertificateRequest",
+        "summary": "Create certificate request from asset workspace",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CertificateRequestCreateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Certificate request accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AcceptedEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/certificate-assets/{assetId}": {
+      "get": {
+        "tags": ["certificate-assets"],
+        "operationId": "getCertificateAsset",
+        "summary": "Get certificate asset detail",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/AssetID" }],
+        "responses": {
+          "200": {
+            "description": "Certificate asset detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/certificate-assets/{assetId}/versions": {
+      "get": {
+        "tags": ["certificate-assets"],
+        "operationId": "listCertificateAssetVersions",
+        "summary": "List certificate asset versions",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/AssetID" }],
+        "responses": {
+          "200": {
+            "description": "Certificate version list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/certificate-assets/{assetId}/deployments": {
+      "get": {
+        "tags": ["certificate-assets"],
+        "operationId": "listCertificateAssetDeployments",
+        "summary": "List deployments for certificate asset",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/AssetID" }],
+        "responses": {
+          "200": {
+            "description": "Deployment record list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/certificate-assets/{assetId}/discoveries": {
+      "get": {
+        "tags": ["certificate-assets"],
+        "operationId": "listCertificateAssetDiscoveries",
+        "summary": "List discoveries linked to certificate asset",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/AssetID" }],
+        "responses": {
+          "200": {
+            "description": "Discovery record list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/certificate-assets/{assetId}/renew": {
+      "post": {
+        "tags": ["certificate-assets"],
+        "operationId": "renewCertificateAsset",
+        "summary": "Trigger manual renewal",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/AssetID" }],
+        "responses": {
+          "202": {
+            "description": "Renewal accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AcceptedEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/ca-accounts": {
+      "get": {
+        "tags": ["ca-accounts"],
+        "operationId": "listCAAccounts",
+        "summary": "List CA accounts",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "CA account list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      },
+      "post": {
+        "tags": ["ca-accounts"],
+        "operationId": "createCAAccount",
+        "summary": "Create CA account",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CAAccountUpsertRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created CA account",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/ca-accounts/{id}": {
+      "get": {
+        "tags": ["ca-accounts"],
+        "operationId": "getCAAccount",
+        "summary": "Get CA account detail",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "200": {
+            "description": "CA account detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/ca-accounts/{id}/capabilities": {
+      "get": {
+        "tags": ["ca-accounts"],
+        "operationId": "getCAAccountCapabilities",
+        "summary": "Get CA account capability metadata",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "200": {
+            "description": "CA capability metadata",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/dns-credentials": {
+      "get": {
+        "tags": ["dns-credentials"],
+        "operationId": "listDNSCredentials",
+        "summary": "List DNS credentials",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "DNS credential list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      },
+      "post": {
+        "tags": ["dns-credentials"],
+        "operationId": "createDNSCredential",
+        "summary": "Create DNS credential",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DNSCredentialUpsertRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created DNS credential",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/dns-credentials/{id}": {
+      "put": {
+        "tags": ["dns-credentials"],
+        "operationId": "updateDNSCredential",
+        "summary": "Update DNS credential",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DNSCredentialUpsertRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated DNS credential",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/dns-credentials/{id}/rotate": {
+      "post": {
+        "tags": ["dns-credentials"],
+        "operationId": "rotateDNSCredential",
+        "summary": "Rotate DNS credential secret",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "202": {
+            "description": "Credential rotation accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AcceptedEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/deployment-targets": {
+      "get": {
+        "tags": ["delivery"],
+        "operationId": "listDeploymentTargets",
+        "summary": "List deployment targets",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Deployment target list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      },
+      "post": {
+        "tags": ["delivery"],
+        "operationId": "createDeploymentTarget",
+        "summary": "Create deployment target",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DeploymentTargetUpsertRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created deployment target",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/deployment-targets/{id}": {
+      "get": {
+        "tags": ["delivery"],
+        "operationId": "getDeploymentTarget",
+        "summary": "Get deployment target detail",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "200": {
+            "description": "Deployment target detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      },
+      "put": {
+        "tags": ["delivery"],
+        "operationId": "updateDeploymentTarget",
+        "summary": "Update deployment target",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DeploymentTargetUpsertRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated deployment target",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/nodes": {
+      "get": {
+        "tags": ["delivery"],
+        "operationId": "listNodes",
+        "summary": "List execution nodes",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Node list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/nodes/{id}": {
+      "get": {
+        "tags": ["delivery"],
+        "operationId": "getNode",
+        "summary": "Get node detail",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "200": {
+            "description": "Node detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/nodes/registration-tokens": {
+      "post": {
+        "tags": ["delivery"],
+        "operationId": "createNodeRegistrationToken",
+        "summary": "Create node registration token",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "201": {
+            "description": "Created registration token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/nodes/{id}/disable": {
+      "post": {
+        "tags": ["delivery"],
+        "operationId": "disableNode",
+        "summary": "Disable node",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "202": {
+            "description": "Node disable accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AcceptedEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/nodes/{id}/labels": {
+      "put": {
+        "tags": ["delivery"],
+        "operationId": "updateNodeLabels",
+        "summary": "Update node labels",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/NodeLabelUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated node labels",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/jobs": {
+      "get": {
+        "tags": ["jobs"],
+        "operationId": "listJobs",
+        "summary": "List jobs",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Job list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/jobs/{id}": {
+      "get": {
+        "tags": ["jobs"],
+        "operationId": "getJob",
+        "summary": "Get job detail",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "200": {
+            "description": "Job detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/jobs/{id}/attempts": {
+      "get": {
+        "tags": ["jobs"],
+        "operationId": "listJobAttempts",
+        "summary": "List job attempts",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "200": {
+            "description": "Job attempt list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/jobs/{id}/retry": {
+      "post": {
+        "tags": ["jobs"],
+        "operationId": "retryJob",
+        "summary": "Retry job",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "202": {
+            "description": "Retry accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AcceptedEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/jobs/{id}/cancel": {
+      "post": {
+        "tags": ["jobs"],
+        "operationId": "cancelJob",
+        "summary": "Cancel job",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "202": {
+            "description": "Cancel accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AcceptedEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/discoveries": {
+      "get": {
+        "tags": ["discoveries"],
+        "operationId": "listDiscoveries",
+        "summary": "List discovery records",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Discovery record list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/discoveries/scan": {
+      "post": {
+        "tags": ["discoveries"],
+        "operationId": "startDiscoveryScan",
+        "summary": "Start discovery scan",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "202": {
+            "description": "Discovery scan accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AcceptedEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/discoveries/{id}/claim": {
+      "post": {
+        "tags": ["discoveries"],
+        "operationId": "claimDiscovery",
+        "summary": "Claim discovery record into asset",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "202": {
+            "description": "Claim accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AcceptedEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/discoveries/{id}/ignore": {
+      "post": {
+        "tags": ["discoveries"],
+        "operationId": "ignoreDiscovery",
+        "summary": "Ignore discovery record",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "202": {
+            "description": "Ignore accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AcceptedEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/audit-events": {
+      "get": {
+        "tags": ["audit"],
+        "operationId": "listAuditEvents",
+        "summary": "List audit events",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Audit event list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/audit-events/{id}": {
+      "get": {
+        "tags": ["audit"],
+        "operationId": "getAuditEvent",
+        "summary": "Get audit event detail",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "responses": {
+          "200": {
+            "description": "Audit event detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/dashboard/summary": {
+      "get": {
+        "tags": ["dashboard"],
+        "operationId": "getDashboardSummary",
+        "summary": "Get dashboard summary",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Dashboard summary",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/dashboard/expiring-certificates": {
+      "get": {
+        "tags": ["dashboard"],
+        "operationId": "listExpiringCertificates",
+        "summary": "List expiring certificates",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Expiring certificate list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/dashboard/job-failures": {
+      "get": {
+        "tags": ["dashboard"],
+        "operationId": "listDashboardJobFailures",
+        "summary": "List dashboard job failures",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Job failure list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/dashboard/discovery-anomalies": {
+      "get": {
+        "tags": ["dashboard"],
+        "operationId": "listDashboardDiscoveryAnomalies",
+        "summary": "List discovery anomalies",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Discovery anomaly list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/settings/webhooks": {
+      "get": {
+        "tags": ["settings"],
+        "operationId": "listWebhookEndpoints",
+        "summary": "List webhook endpoints",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Webhook endpoint list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      },
+      "post": {
+        "tags": ["settings"],
+        "operationId": "createWebhookEndpoint",
+        "summary": "Create webhook endpoint",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WebhookUpsertRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created webhook endpoint",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/settings/webhooks/{id}": {
+      "put": {
+        "tags": ["settings"],
+        "operationId": "updateWebhookEndpoint",
+        "summary": "Update webhook endpoint",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ID" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WebhookUpsertRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated webhook endpoint",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/settings/renewal-window": {
+      "get": {
+        "tags": ["settings"],
+        "operationId": "getRenewalWindowSettings",
+        "summary": "Get renewal window settings",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Renewal window settings",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      },
+      "put": {
+        "tags": ["settings"],
+        "operationId": "updateRenewalWindowSettings",
+        "summary": "Update renewal window settings",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RenewalWindowSettingsRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated renewal window settings",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/settings/security": {
+      "get": {
+        "tags": ["settings"],
+        "operationId": "getSecuritySettings",
+        "summary": "Get security settings",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Security settings",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      },
+      "put": {
+        "tags": ["settings"],
+        "operationId": "updateSecuritySettings",
+        "summary": "Update security settings",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SecuritySettingsRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated security settings",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObjectEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/agent/v1/register": {
+      "post": {
+        "tags": ["agent"],
+        "operationId": "registerAgent",
+        "summary": "Register agent node",
+        "description": "Transport security is expected to be enforced out of band by mTLS.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AgentRegisterRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent registration accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AgentRegisterResponse" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/agent/v1/heartbeat": {
+      "post": {
+        "tags": ["agent"],
+        "operationId": "heartbeatAgent",
+        "summary": "Heartbeat from agent",
+        "description": "Transport security is expected to be enforced out of band by mTLS.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AgentHeartbeatRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Heartbeat acknowledged",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AgentHeartbeatResponse" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/agent/v1/jobs/poll": {
+      "post": {
+        "tags": ["agent"],
+        "operationId": "pollAgentJobs",
+        "summary": "Poll jobs for agent",
+        "description": "DNS-01 execution is not dispatched to agents.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AgentJobPollRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pending jobs",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AgentJobPollResponse" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/agent/v1/jobs/{jobId}/progress": {
+      "post": {
+        "tags": ["agent"],
+        "operationId": "reportAgentJobProgress",
+        "summary": "Report incremental job progress",
+        "parameters": [{ "$ref": "#/components/parameters/JobID" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AgentJobProgressRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Progress acknowledged",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EmptyEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/agent/v1/jobs/{jobId}/complete": {
+      "post": {
+        "tags": ["agent"],
+        "operationId": "completeAgentJob",
+        "summary": "Report final job completion",
+        "parameters": [{ "$ref": "#/components/parameters/JobID" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AgentJobCompleteRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Completion acknowledged",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EmptyEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "parameters": {
+      "ID": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "format": "uuid" }
+      },
+      "AssetID": {
+        "name": "assetId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "format": "uuid" }
+      },
+      "JobID": {
+        "name": "jobId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "format": "uuid" }
+      }
+    },
+    "responses": {
+      "ErrorResponse": {
+        "description": "Error response",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["request_id", "error"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" },
+              "details": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/ErrorDetail" }
+              }
+            }
+          }
+        }
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "properties": {
+          "field": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      },
+      "PageMeta": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer", "minimum": 1 },
+          "page_size": { "type": "integer", "minimum": 1 },
+          "total": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "ObjectEnvelope": {
+        "type": "object",
+        "required": ["request_id", "data"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      },
+      "ListEnvelope": {
+        "type": "object",
+        "required": ["request_id", "items"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": { "type": "object" }
+          },
+          "meta": { "$ref": "#/components/schemas/PageMeta" }
+        }
+      },
+      "AcceptedEnvelope": {
+        "type": "object",
+        "required": ["request_id", "status"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["accepted"] },
+          "job_id": { "type": "string", "format": "uuid" }
+        }
+      },
+      "EmptyEnvelope": {
+        "type": "object",
+        "required": ["request_id", "status"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      },
+      "AuthLoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": { "type": "string" },
+          "password": { "type": "string", "format": "password" }
+        }
+      },
+      "AuthLoginResponse": {
+        "type": "object",
+        "required": ["request_id", "access_token", "refresh_token", "expires_in", "context"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "access_token": { "type": "string" },
+          "refresh_token": { "type": "string" },
+          "expires_in": { "type": "integer", "minimum": 1 },
+          "context": { "$ref": "#/components/schemas/AuthContext" }
+        }
+      },
+      "AuthMeResponse": {
+        "type": "object",
+        "required": ["request_id", "data"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/AuthContext" }
+        }
+      },
+      "AuthContext": {
+        "type": "object",
+        "required": ["locale", "available_locales", "user", "tenant", "project", "environment", "roles"],
+        "properties": {
+          "locale": { "type": "string", "enum": ["zh-CN", "en-US"] },
+          "available_locales": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["zh-CN", "en-US"] }
+          },
+          "user": { "$ref": "#/components/schemas/NamedResource" },
+          "tenant": { "$ref": "#/components/schemas/NamedResource" },
+          "project": { "$ref": "#/components/schemas/NamedResource" },
+          "environment": { "$ref": "#/components/schemas/NamedResource" },
+          "roles": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "NamedResource": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "code": { "type": "string" },
+          "display_name": { "type": "string" }
+        }
+      },
+      "LocalePreferencesRequest": {
+        "type": "object",
+        "required": ["locale"],
+        "properties": {
+          "locale": { "type": "string", "enum": ["zh-CN", "en-US"] }
+        }
+      },
+      "DomainUpsertRequest": {
+        "type": "object",
+        "required": ["name", "challenge_type"],
+        "properties": {
+          "name": { "type": "string" },
+          "challenge_type": { "type": "string", "enum": ["http-01", "dns-01"] },
+          "auto_renew": { "type": "boolean" },
+          "dns_credential_id": { "type": "string", "format": "uuid" }
+        }
+      },
+      "DomainDNSBindingRequest": {
+        "type": "object",
+        "required": ["dns_credential_id"],
+        "properties": {
+          "dns_credential_id": { "type": "string", "format": "uuid" }
+        }
+      },
+      "CertificateRequestCreateRequest": {
+        "type": "object",
+        "required": ["domain_ids", "ca_account_id", "challenge_type"],
+        "properties": {
+          "domain_ids": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" },
+            "minItems": 1
+          },
+          "ca_account_id": { "type": "string", "format": "uuid" },
+          "certificate_type": { "type": "string", "enum": ["single", "san", "wildcard"] },
+          "challenge_type": { "type": "string", "enum": ["http-01", "dns-01"] },
+          "deployment_target_ids": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" }
+          }
+        }
+      },
+      "CAAccountUpsertRequest": {
+        "type": "object",
+        "required": ["display_name", "directory_url", "email"],
+        "properties": {
+          "display_name": { "type": "string" },
+          "directory_url": { "type": "string", "format": "uri" },
+          "email": { "type": "string", "format": "email" }
+        }
+      },
+      "DNSCredentialUpsertRequest": {
+        "type": "object",
+        "required": ["display_name", "provider_type", "access_key_id", "secret"],
+        "properties": {
+          "display_name": { "type": "string" },
+          "provider_type": { "type": "string", "enum": ["alidns"] },
+          "access_key_id": { "type": "string" },
+          "secret": { "type": "string" },
+          "scope_mode": { "type": "string", "enum": ["environment", "domain"] }
+        }
+      },
+      "DeploymentTargetUpsertRequest": {
+        "type": "object",
+        "required": ["name", "target_type"],
+        "properties": {
+          "name": { "type": "string" },
+          "target_type": { "type": "string", "enum": ["nginx", "tomcat"] },
+          "node_id": { "type": "string", "format": "uuid" },
+          "config_path": { "type": "string" },
+          "certificate_path": { "type": "string" },
+          "private_key_path": { "type": "string" },
+          "keystore_path": { "type": "string" }
+        }
+      },
+      "NodeLabelUpdateRequest": {
+        "type": "object",
+        "required": ["labels"],
+        "properties": {
+          "labels": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      },
+      "WebhookUpsertRequest": {
+        "type": "object",
+        "required": ["name", "url", "event_types"],
+        "properties": {
+          "name": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "secret": { "type": "string" },
+          "event_types": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "enabled": { "type": "boolean" }
+        }
+      },
+      "RenewalWindowSettingsRequest": {
+        "type": "object",
+        "required": ["days_before_expiry"],
+        "properties": {
+          "days_before_expiry": { "type": "integer", "minimum": 1 },
+          "scan_interval_minutes": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "SecuritySettingsRequest": {
+        "type": "object",
+        "properties": {
+          "enforce_strong_password": { "type": "boolean" },
+          "password_rotation_days": { "type": "integer", "minimum": 1 },
+          "max_session_count": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "AgentRegisterRequest": {
+        "type": "object",
+        "required": ["token", "node_name", "version", "protocol_version"],
+        "properties": {
+          "token": { "type": "string" },
+          "node_name": { "type": "string" },
+          "version": { "type": "string" },
+          "protocol_version": { "type": "integer", "minimum": 1 },
+          "capabilities": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      },
+      "AgentRegisterResponse": {
+        "type": "object",
+        "required": ["request_id", "node_id", "status", "poll_interval_seconds"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "node_id": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "enum": ["active"] },
+          "poll_interval_seconds": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "AgentHeartbeatRequest": {
+        "type": "object",
+        "required": ["node_id"],
+        "properties": {
+          "node_id": { "type": "string", "format": "uuid" },
+          "leases": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "job_id": { "type": "string", "format": "uuid" },
+                "status": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "AgentHeartbeatResponse": {
+        "type": "object",
+        "required": ["request_id", "status", "server_time"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["ok"] },
+          "server_time": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AgentJobPollRequest": {
+        "type": "object",
+        "required": ["node_id"],
+        "properties": {
+          "node_id": { "type": "string", "format": "uuid" },
+          "max_jobs": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "AgentJobPollResponse": {
+        "type": "object",
+        "required": ["request_id", "items"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AgentJob" }
+          }
+        }
+      },
+      "AgentJob": {
+        "type": "object",
+        "required": ["job_id", "job_type", "lease_expire_at", "payload"],
+        "properties": {
+          "job_id": { "type": "string", "format": "uuid" },
+          "job_type": { "type": "string" },
+          "lease_expire_at": { "type": "string", "format": "date-time" },
+          "payload": { "type": "object" }
+        }
+      },
+      "AgentJobProgressRequest": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": { "type": "string", "enum": ["started", "heartbeating", "running"] },
+          "message": { "type": "string" },
+          "error_code": { "type": "string" },
+          "progress_percent": { "type": "integer", "minimum": 0, "maximum": 100 }
+        }
+      },
+      "AgentJobCompleteRequest": {
+        "type": "object",
+        "required": ["result_status"],
+        "properties": {
+          "result_status": { "type": "string", "enum": ["succeeded", "failed", "timed_out", "abandoned"] },
+          "error_code": { "type": "string" },
+          "error_message": { "type": "string" },
+          "evidence": { "type": "object" }
+        }
+      }
+    }
+  }
+}

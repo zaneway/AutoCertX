@@ -1,0 +1,125 @@
+{
+  "version": "2026-04-20",
+  "errors": [
+    {
+      "code": "AUTH_INVALID_CREDENTIALS",
+      "message": "authentication failed",
+      "http_status": 401,
+      "retryable": false
+    },
+    {
+      "code": "AUTH_UNAUTHORIZED",
+      "message": "authentication required",
+      "http_status": 401,
+      "retryable": false
+    },
+    {
+      "code": "AUTH_SESSION_EXPIRED",
+      "message": "session expired",
+      "http_status": 401,
+      "retryable": true
+    },
+    {
+      "code": "PERMISSION_DENIED",
+      "message": "permission denied",
+      "http_status": 403,
+      "retryable": false
+    },
+    {
+      "code": "RESOURCE_NOT_FOUND",
+      "message": "resource not found",
+      "http_status": 404,
+      "retryable": false
+    },
+    {
+      "code": "REQUEST_VALIDATION_FAILED",
+      "message": "request validation failed",
+      "http_status": 400,
+      "retryable": false
+    },
+    {
+      "code": "RESOURCE_CONFLICT",
+      "message": "resource conflict",
+      "http_status": 409,
+      "retryable": false
+    },
+    {
+      "code": "TENANT_SCOPE_MISMATCH",
+      "message": "scope mismatch",
+      "http_status": 409,
+      "retryable": false
+    },
+    {
+      "code": "DNS_CREDENTIAL_UNAVAILABLE",
+      "message": "dns credential unavailable",
+      "http_status": 409,
+      "retryable": true
+    },
+    {
+      "code": "CA_ACCOUNT_UNAVAILABLE",
+      "message": "ca account unavailable",
+      "http_status": 409,
+      "retryable": true
+    },
+    {
+      "code": "CHALLENGE_PRESENT_FAILED",
+      "message": "challenge presentation failed",
+      "http_status": 502,
+      "retryable": true
+    },
+    {
+      "code": "CHALLENGE_VERIFY_FAILED",
+      "message": "challenge verification failed",
+      "http_status": 409,
+      "retryable": true
+    },
+    {
+      "code": "ACME_ORDER_FAILED",
+      "message": "acme order failed",
+      "http_status": 502,
+      "retryable": true
+    },
+    {
+      "code": "NODE_OFFLINE",
+      "message": "node offline",
+      "http_status": 409,
+      "retryable": true
+    },
+    {
+      "code": "NODE_PROTOCOL_UNSUPPORTED",
+      "message": "node protocol unsupported",
+      "http_status": 409,
+      "retryable": false
+    },
+    {
+      "code": "DEPLOYMENT_FAILED",
+      "message": "deployment failed",
+      "http_status": 502,
+      "retryable": true
+    },
+    {
+      "code": "DISCOVERY_FAILED",
+      "message": "discovery failed",
+      "http_status": 502,
+      "retryable": true
+    },
+    {
+      "code": "JOB_NOT_RETRYABLE",
+      "message": "job is not retryable",
+      "http_status": 409,
+      "retryable": false
+    },
+    {
+      "code": "RATE_LIMITED",
+      "message": "request rate limited",
+      "http_status": 429,
+      "retryable": true
+    },
+    {
+      "code": "INTERNAL_ERROR",
+      "message": "internal error",
+      "http_status": 500,
+      "retryable": true
+    }
+  ]
+}

@@ -1,37 +1,39 @@
-# AutoCertX AI 并行研发规划 V2.0
+# AutoCertX AI 并行研发执行规划 V3.0
 
-- 编写日期：2026-04-16
-- 适用范围：一期 GA 并行研发组织、AI 任务拆分、自动化验收设计
+- 编写日期：2026-04-20
+- 适用范围：一期 GA 并行研发组织、任务拆分、自动化验收、集成门禁
 - 关联文档：
   - `doc/需求说明书.md`
   - `doc/GA一期与后续需求规划.md`
   - `doc/一期GA详细设计.md`
+  - `doc/前端页面设计.md`
   - `doc/开源组件选型与扩展性设计.md`
+  - `doc/后端代码结构评估与重构建议.md`
   - `sql/001_init_schema.sql`
 
 ## 文档关系
 
-- `doc/需求说明书.md` 提供产品目标、长期边界和非目标。
-- `doc/GA一期与后续需求规划.md` 冻结一期 GA 的范围、成功标准和阶段顺序。
-- `doc/一期GA详细设计.md` 冻结技术基线、模块边界、数据模型和共享契约。
-- `doc/开源组件选型与扩展性设计.md` 约束组件复用边界和扩展路径。
-- 本文档不再讨论需求取舍，重点负责研发任务拆分、主写范围划分和自动化验收设计。
+- `doc/需求说明书.md` 定义产品级需求、长期边界、角色和非目标。
+- `doc/GA一期与后续需求规划.md` 冻结一期 GA 范围、成功标准和后续演进边界。
+- `doc/一期GA详细设计.md` 冻结技术基线、状态机、关系模型、数据库表、服务边界和 API 组织方式。
+- `doc/前端页面设计.md` 冻结控制台信息架构、一级导航、页面职责和前端页面验收口径。
+- `doc/后端代码结构评估与重构建议.md` 约束后端代码结构必须采用“分层 + Query 聚合”的组织方式。
+- 本文档不再讨论需求取舍，目标是把上述输入转换为“可由多个 AI 并行执行”的研发计划和验收规则。
 
 ## 1. 文档目标
 
-这份文档不是传统里程碑 Roadmap，而是面向“多个 AI 并行研发”的执行手册。
+本文档解决四件事：
 
-目标有三件事：
+1. 把一期 GA 拆成可并行、低冲突、可自动验收的任务包。
+2. 为每个任务包定义唯一主写范围、依赖关系、输出物和门禁。
+3. 明确多个 AI 工具协同时的分工方式、集成顺序和冲突处理规则。
+4. 为每个任务包定义可自动执行的验收命令，降低人工 review 才能发现问题的比例。
 
-1. 把一期 GA 的研发任务拆成可并行、低冲突、可独立验收的任务包
-2. 为每个任务包定义清晰的输入、输出、依赖、写入范围和验收标准
-3. 把验收标准转换成 AI 可执行的自动化验收动作，尽量减少人工 review 才能发现的问题
+## 2. 一期研发冻结基线
 
-## 2. 并行研发总原则
+### 2.1 功能冻结范围
 
-### 2.1 一期研发边界
-
-一期只做以下闭环：
+一期只交付以下闭环：
 
 - `Let's Encrypt`
 - `ACME v2`
@@ -41,131 +43,180 @@
 - `Tomcat (JSSE + PKCS12)`
 - `RSA`
 - `Web Console + Control Plane + Execution Plane`
+- `zh-CN / en-US` 双语切换
 
-任何 AI 任务不得擅自扩展到：
+### 2.2 成功标准
 
-- `SM2 / ECDSA / ECC`
+一期 GA 成功必须同时满足：
+
+- 具备完善的 Web 管理能力：
+  - 登录认证
+  - 域名管理
+  - 证书资产管理
+  - CA 账户管理
+  - 交付管理
+  - 发现结果
+  - 作业中心
+  - 审计与基础查询统计
+- 具备自动签发能力：
+  - 支持 `HTTP-01`、`DNS-01(TXT, 阿里云)`
+  - 支持证书申请状态跟踪、挑战跟踪、签发结果入库
+- 具备自动续期能力：
+  - 支持续期窗口扫描、分布式 claim/lease 调度、幂等重试
+- 具备自动部署能力：
+  - 支持 `NGINX`
+  - 支持 `Tomcat(JSSE + PKCS12)`
+  - 支持部署后验证、失败回滚、结果审计
+- 具备发现与有效期检测能力：
+  - 执行面可达范围内配置扫描
+  - 本地证书解析
+  - 未纳管证书认领
+- 具备多租户、RBAC、审计、证据导出和基础 Webhook 能力
+
+### 2.3 明确不做
+
+本计划不包含：
+
+- `SM2 / ECDSA / ECC / 抗量子`
 - 非阿里云 DNS Provider
-- 非 `NGINX / Tomcat` 目标连接器
+- 非 `NGINX / Tomcat` 连接器
 - `OIDC / SAML`
-- 网络级 TLS 探测
+- 邮件、钉钉、飞书、企业微信通知
+- 网络级 TLS 握手探测
+- 自建 ACME Server
 
-### 2.2 并行拆分原则
+## 3. 多 AI 并行研发模型
 
-- 先冻结接口，再并行实现
-- 先拆“写入范围”，再拆“功能范围”
-- 每个任务包必须有唯一主写集，避免多个 AI 修改同一目录
-- 每个任务包都必须自带自动化验收脚本或命令
-- 没有自动化验收的任务，不允许进入集成波次
+### 3.1 AI 角色
 
-### 2.3 AI 协作角色
-
-建议至少使用四类 AI 角色：
+建议至少使用五类 AI 角色：
 
 - `Orchestrator`
-  - 负责拆任务、派工、跟踪依赖、控制 merge 顺序
+  - 负责任务拆分、依赖排序、接口冻结、分支合并顺序控制
 - `Worker`
-  - 负责某个任务包的具体实现
+  - 负责单个任务包的设计落地和测试实现
 - `Checker`
-  - 负责按任务包验收要求执行自动化验收并做代码复核
+  - 负责按任务验收规则重复执行自动化验收并做代码复核
 - `Integrator`
-  - 负责解决跨任务冲突、做集成修正、推进联合测试
+  - 负责波次集成、冲突收敛、E2E 回归和发布候选构建
+- `Doc/Contract Keeper`
+  - 负责 OpenAPI、SQL、README、研发文档与代码实现的一致性校验
 
-### 2.4 任务完成定义
+### 3.2 协作原则
+
+- 一个任务包只允许一个 `Worker AI` 作为主写者。
+- 每个任务包必须有唯一主写目录，禁止多个 AI 并行改同一主写目录。
+- 契约优先于实现：
+  - `sql/`、`api/openapi/`、共享错误码、共享 DTO 必须先冻结，再进入功能实现。
+- 页面聚合查询必须通过 `application/query` 层组织，不允许把控制台聚合逻辑直接塞进 `domain` 或 `repository`。
+- `交付管理` 只是页面聚合域，后端仍必须保持 `DeploymentTarget` 和 `AgentNode` 分离。
+- `web/console/*.html` 为原型参考，正式 Vue 3 工程代码统一落在 `web/console/src/`。
+
+### 3.3 工作方式
+
+建议采用 `一任务一 worktree/一任务一分支`：
+
+- 分支命名：`codex/Txx-<topic>`
+- 每个任务包独立 worktree，禁止多个 AI 在同一工作副本里交叉提交
+- 共享文件修改采用“契约优先”流程：
+  - 先由 `T01/T02/T13` 冻结共享变更
+  - 其他任务只消费稳定契约
+
+### 3.4 任务完成定义
 
 任意任务包完成，必须同时满足：
 
 - 代码实现完成
-- 测试实现完成
-- 自动化验收命令可执行
-- 文档或接口契约已同步
-- 不破坏其他任务包既有契约
+- 必要测试完成
+- 对应 `make ci-task-Txx` 可执行且通过
+- 文档或接口契约同步
+- 不破坏已冻结契约
+- Checker AI 在独立 worktree 重跑通过
 
-## 3. 目标代码布局与写入边界
+## 4. 目标代码结构与写入边界
 
-为了支撑多 AI 并行，先约定目录级写集边界。
+### 4.1 后端目标结构
 
-| 区域 | 目标目录 | 主要内容 | 允许主写任务 |
-| --- | --- | --- | --- |
-| 控制面入口 | `cmd/controlplane/` | 控制面启动入口 | `T00`、`T13` |
-| Agent 入口 | `cmd/agent/` | Agent 启动入口 | `T00`、`T07`、`T13` |
-| 平台基础设施 | `internal/platform/` | DB、config、logger、middleware、common infra | `T00`、`T01`、`T02`、`T05` |
-| 身份与权限 | `internal/controlplane/identity/` | 登录、租户上下文、RBAC、API Key | `T03` |
-| 域名与凭据治理 | `internal/controlplane/domainmgr/` | 域名、DNS 凭据、验证记录 | `T04` |
-| CA 账户治理 | `internal/controlplane/issuer/` | ACME 账户管理、能力查询 | `T04`、`T06` |
-| 证书与工作流 | `internal/controlplane/certificate/` `internal/controlplane/workflow/` | 申请、版本、工作流 | `T06` |
-| 调度与作业 | `internal/controlplane/scheduler/` `internal/controlplane/job/` | jobs、lease、worker | `T05` |
-| Agent Hub | `internal/controlplane/agenthub/` | 注册、心跳、派发、结果接收 | `T07` |
-| 部署 | `internal/controlplane/deployment/` `internal/agent/deploy/` `internal/agent/keymgr/` | 部署与回滚 | `T08` |
-| 发现 | `internal/controlplane/discovery/` `internal/agent/discover/` | 配置扫描、匹配、认领 | `T09` |
-| 审计与证据 | `internal/controlplane/audit/` `internal/controlplane/evidence/` | 审计、证据、导出 | `T10` |
-| 通知与设置 | `internal/controlplane/notification/` `internal/controlplane/settings/` | Webhook、系统设置 | `T10` |
-| 协议与契约 | `api/openapi/` `pkg/protocol/acme/` | OpenAPI、Agent API、ACME 协议封装 | `T02`、`T06`、`T07` |
-| 前端基础壳 | `web/src/app/` `web/src/shared/` | 路由、鉴权、API client、基础 UI | `T11` |
-| 前端治理页 | `web/src/modules/domains/` `web/src/modules/ca-accounts/` `web/src/modules/targets/` `web/src/modules/nodes/` `web/src/modules/settings/` | 治理型页面 | `T12A` |
-| 前端运行页 | `web/src/modules/assets/` `web/src/modules/requests/` `web/src/modules/jobs/` `web/src/modules/discoveries/` `web/src/modules/dashboard/` `web/src/modules/audit/` | 运行型页面 | `T12B` |
-| SQL 与迁移 | `sql/` `migrations/` | 初始化 DDL、版本迁移、种子数据 | `T01` |
-| 集成与 E2E | `tests/integration/` `tests/e2e/` `scripts/` `.github/workflows/` | 集成测试、E2E、CI | `T13` |
+控制面按以下结构展开：
 
-约束：
+```text
+internal/
+  app/
+    controlplane/
+      bootstrap/
+      http/
+      middleware/
+      wiring/
+  domain/
+    identity/
+    tenancy/
+    domains/
+    dnscredentials/
+    issuer/
+    certificateasset/
+    certificaterequest/
+    issueworkflow/
+    deploymenttarget/
+    agentnode/
+    discovery/
+    job/
+    audit/
+    settings/
+  application/
+    command/
+    query/
+  repository/
+  workflow/
+  driver/
+  scheduler/
+  agent/
+    bootstrap/
+    keymgr/
+    challenge/http01/
+    deploy/nginx/
+    deploy/tomcat/
+    discover/nginx/
+    discover/tomcat/
+    verify/nginx/
+    verify/tomcat/
+```
 
-- 非主写任务只允许做最小接口适配，不允许大面积改写他人拥有目录
-- 如果必须修改共享契约目录，先由 `Orchestrator` 冻结接口再派发
+### 4.2 目录级主写边界
 
-## 4. 自动化验收总规约
+| 区域                  | 目标目录                                                                                                                                                                                                                                                                          | 主写任务              |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| 工程入口与基础设施           | `cmd/` `internal/platform/` `internal/app/controlplane/`                                                                                                                                                                                                                      | `T00` `T13` `T16` |
+| 数据模型与持久化            | `sql/` `internal/repository/`                                                                                                                                                                                                                                                 | `T01`             |
+| 共享契约                | `api/openapi/` `internal/platform/httpx/` 共享错误码/DTO                                                                                                                                                                                                                           | `T02`             |
+| 身份、租户、RBAC          | `internal/domain/identity/` `internal/domain/tenancy/` `internal/application/command/auth/` `internal/application/query/authcontext/`                                                                                                                                         | `T03`             |
+| 域名、DNS 凭据、CA 账户     | `internal/domain/domains/` `internal/domain/dnscredentials/` `internal/domain/issuer/` `internal/application/command/domains/` `internal/application/command/caaccounts/`                                                                                                     | `T04`             |
+| 调度与任务系统             | `internal/domain/job/` `internal/scheduler/` `internal/application/command/jobs/`                                                                                                                                                                                             | `T05`             |
+| 审计、证据、设置、导出、Webhook | `internal/domain/audit/` `internal/domain/settings/` `internal/application/command/settings/` `internal/application/query/audit/`                                                                                                                                             | `T06`             |
+| 聚合查询层               | `internal/application/query/dashboard/` `internal/application/query/domains/` `internal/application/query/assets/` `internal/application/query/delivery/` `internal/application/query/discoveries/` `internal/application/query/jobs/` `internal/application/query/settings/` | `T07`             |
+| ACME 与签发工作流         | `internal/domain/certificaterequest/` `internal/domain/certificateasset/` `internal/domain/issueworkflow/` `internal/workflow/` `internal/driver/acme/` `internal/driver/dns/`                                                                                                | `T08`             |
+| Agent 管理、部署目标治理与协议  | `internal/domain/agentnode/` `internal/domain/deploymenttarget/` `internal/application/command/nodes/` `internal/application/command/targets/` `internal/driver/agenttransport/` `internal/agent/bootstrap/`                                                                  | `T09`             |
+| NGINX 部署与验证         | `internal/agent/deploy/nginx/` `internal/agent/verify/nginx/`                                                                                                                                                                                                                 | `T10`             |
+| Tomcat 部署与验证        | `internal/agent/deploy/tomcat/` `internal/agent/verify/tomcat/`                                                                                                                                                                                                               | `T11`             |
+| 发现与认领               | `internal/domain/discovery/` `internal/agent/discover/nginx/` `internal/agent/discover/tomcat/` `internal/application/command/discoveries/`                                                                                                                                   | `T12`             |
+| Vue 壳层与共享前端能力       | `web/console/src/app/` `web/console/src/shared/`                                                                                                                                                                                                                              | `T13`             |
+| 前端治理页               | `web/console/src/modules/domains/` `web/console/src/modules/ca-accounts/` `web/console/src/modules/delivery/` `web/console/src/modules/settings/`                                                                                                                             | `T14`             |
+| 前端运行页               | `web/console/src/modules/dashboard/` `web/console/src/modules/assets/` `web/console/src/modules/jobs/` `web/console/src/modules/discoveries/` `web/console/src/modules/audit/`                                                                                                | `T15`             |
+| 集成、E2E、CI、发布        | `tests/` `scripts/` `.github/workflows/` `docker/`                                                                                                                                                                                                                            | `T16`             |
 
-### 4.1 验收分层
+### 4.3 共享文件冻结名单
 
-每个任务包的自动化验收分五层：
+以下文件只能由指定任务或 Integrator 修改：
 
-1. `静态校验`
-   - 格式化、lint、依赖检查、OpenAPI 校验
-2. `单元测试`
-   - 模块内部逻辑、边界条件、错误路径
-3. `契约测试`
-   - API、DTO、事件、Agent 协议、Repository 接口契约
-4. `集成测试`
-   - PostgreSQL / Redis / mock ACME / mock Agent / fixture runtime
-5. `端到端测试`
-   - 从控制台/API 到现场执行结果的整链路回归
+- `go.mod` `go.sum`：`T00`、`T16`
+- `sql/001_init_schema.sql` 与迁移基线：`T01`、`T16`
+- `api/openapi/*`：`T02`、必要时 `T16`
+- 根级 `Makefile`：`T00`、`T16`
+- `.github/workflows/*`：`T16`
+- `web/console/package.json` `web/console/vite.config.*` `web/console/tsconfig*.json`：`T13`、`T16`
 
-### 4.2 统一交付要求
+## 5. 研发波次与并行顺序
 
-每个任务包必须交付：
-
-- 代码
-- 测试
-- 至少一个可直接执行的验收命令
-- 必要的接口契约更新
-- 必要的文档更新
-
-### 4.3 建议统一 Make 目标
-
-为了让多个 AI 都能执行统一验收，建议后续统一沉淀这些命令：
-
-- `make fmt`
-- `make lint`
-- `make test-unit`
-- `make test-integration`
-- `make test-e2e-http01`
-- `make test-e2e-dns01`
-- `make web-lint`
-- `make web-test`
-- `make web-build`
-- `make db-verify`
-- `make openapi-verify`
-- `make ci-task-<TASK_ID>`
-
-### 4.4 AI 自动验收执行规则
-
-- `Worker AI` 完成实现后，必须先执行本任务包的自动化验收
-- `Checker AI` 必须独立重复执行同一组验收命令
-- 若任务包存在集成依赖，`Integrator AI` 必须在集成分支重复执行一次
-- 只有三者结果一致，任务包才允许进入下一波次
-
-## 5. 并行研发波次与依赖图
-
-### 5.1 推荐波次
+### 5.1 波次划分
 
 - `Wave 0`
   - `T00`
@@ -176,630 +227,692 @@
   - `T03`
   - `T04`
   - `T05`
-  - `T10`
-  - `T11`
-- `Wave 3`
   - `T06`
+  - `T13`
+- `Wave 3`
   - `T07`
-  - `T12A`
-- `Wave 4`
   - `T08`
   - `T09`
-  - `T12B`
+  - `T14`
+- `Wave 4`
+  - `T10`
+  - `T11`
+  - `T12`
+  - `T15`
 - `Wave 5`
-  - `T13`
+  - `T16`
 
 ### 5.2 依赖图
 
 ```mermaid
 flowchart LR
-    T00["T00 工程基线"] --> T01["T01 数据库与迁移"]
-    T00 --> T02["T02 OpenAPI/共享契约"]
+    T00["T00 工程骨架与规范"] --> T01["T01 SQL/迁移/Repository基线"]
+    T00 --> T02["T02 OpenAPI/错误码/共享契约"]
+    T00 --> T13["T13 Vue壳层/Auth/I18n"]
 
-    T01 --> T03["T03 身份/RBAC/会话"]
+    T01 --> T03["T03 身份/租户/RBAC"]
     T02 --> T03
 
-    T01 --> T04["T04 域名/CA/DNS治理"]
+    T01 --> T04["T04 域名/DNS/CA治理"]
     T02 --> T04
 
     T01 --> T05["T05 Job/Lease/Scheduler"]
     T02 --> T05
 
-    T01 --> T10["T10 审计/证据/通知/设置"]
-    T02 --> T10
-
-    T02 --> T11["T11 Web壳/Auth/Shared Query"]
-    T03 --> T11
-
-    T04 --> T06["T06 ACME/工作流/Challenge"]
-    T05 --> T06
+    T01 --> T06["T06 审计/证据/设置/Webhook"]
     T02 --> T06
 
-    T05 --> T07["T07 AgentHub/协议/mTLS"]
-    T02 --> T07
+    T03 --> T07["T07 Query聚合层"]
+    T04 --> T07
+    T05 --> T07
+    T06 --> T07
 
-    T11 --> T12A["T12A 前端治理页"]
-    T04 --> T12A
-    T07 --> T12A
-    T10 --> T12A
+    T04 --> T08["T08 ACME/工作流/Challenge"]
+    T05 --> T08
+    T02 --> T08
 
-    T06 --> T08["T08 部署连接器"]
-    T07 --> T08
-    T04 --> T08
+    T05 --> T09["T09 AgentHub/Agent协议"]
+    T02 --> T09
 
-    T07 --> T09["T09 发现与认领"]
-    T04 --> T09
-    T01 --> T09
+    T13 --> T14["T14 前端治理页"]
+    T04 --> T14
+    T07 --> T14
+    T09 --> T14
 
-    T11 --> T12B["T12B 前端运行页"]
-    T06 --> T12B
-    T09 --> T12B
-    T10 --> T12B
+    T08 --> T10["T10 NGINX部署/验证"]
+    T09 --> T10
 
-    T03 --> T13["T13 集成/E2E/CI"]
-    T06 --> T13
-    T08 --> T13
-    T09 --> T13
-    T10 --> T13
-    T12A --> T13
-    T12B --> T13
+    T08 --> T11["T11 Tomcat部署/验证"]
+    T09 --> T11
+
+    T04 --> T12["T12 发现/认领"]
+    T09 --> T12
+    T01 --> T12
+
+    T13 --> T15["T15 前端运行页"]
+    T07 --> T15
+    T08 --> T15
+    T12 --> T15
+    T06 --> T15
+
+    T03 --> T16["T16 集成/E2E/CI"]
+    T08 --> T16
+    T10 --> T16
+    T11 --> T16
+    T12 --> T16
+    T14 --> T16
+    T15 --> T16
 ```
 
-## 6. 任务节点设计
+### 5.3 推荐 AI 分工
 
-下面的任务节点格式固定为：
+| AI 角色                | 推荐承接任务                    |
+| -------------------- | ------------------------- |
+| `AI-A Orchestrator`  | `T00` 协调、波次推进、共享契约冻结、合并门禁 |
+| `AI-B Platform/DB`   | `T01` `T05` `T16`         |
+| `AI-C Security/API`  | `T02` `T03` `T06`         |
+| `AI-D Workflow/PKI`  | `T04` `T08`               |
+| `AI-E Agent/Runtime` | `T09` `T10` `T11` `T12`   |
+| `AI-F Frontend`      | `T13` `T14` `T15`         |
+| `AI-G Checker`       | 每个波次独立复验                  |
 
-- `任务目标`
-- `前置依赖`
-- `推荐 AI 类型`
-- `主写范围`
-- `交付物`
-- `验收要求`
-- `自动化验收`
+## 6. 任务包设计
 
-### T00 工程基线与仓库骨架
+每个任务包均包含：
 
 - 任务目标
-  - 建立统一目录结构、构建入口、开发环境脚本、基础 Makefile
 - 前置依赖
-  - 无
-- 推荐 AI 类型
-  - `Backend Infra AI`
 - 主写范围
+- 关键交付物
+- 验收要求
+- 自动化验收
+
+### T00 工程骨架与规范冻结
+
+- 任务目标：
+  - 建立目标目录结构
+  - 冻结基础 Make 目标、测试约定、配置约定、日志/错误处理基线
+- 前置依赖：无
+- 主写范围：
   - `cmd/`
   - `internal/platform/`
-  - `Makefile`
-  - `docker-compose.yml`
-  - `.github/workflows/` 的基础骨架
-- 交付物
-  - 控制面和 Agent 空启动入口
-  - 基础配置加载
-  - 基础日志模块
-  - 本地 PostgreSQL / Redis 启动脚本
-- 验收要求
-  - 仓库目录结构符合详细设计的模块边界
-  - 控制面和 Agent 都能启动到健康检查阶段
-  - 本地开发依赖可一键启动
-  - 后续任务可在既定目录下直接接入
-- 自动化验收
+  - `internal/app/controlplane/`
+  - 根级 `Makefile`
+- 关键交付物：
+  - 控制面和 Agent 的基础启动骨架
+  - 统一配置加载、日志、错误包装、HTTP 中间件骨架
+  - `make fmt` `make lint` `make test-unit` `make ci-task-T00`
+- 验收要求：
+  - 仓库可完成基础编译
+  - 目录结构与 `doc/后端代码结构评估与重构建议.md` 对齐
+  - 不再以旧的 `internal/controlplane/*` 平铺结构继续扩张
+- 自动化验收：
   - `make ci-task-T00`
-  - `go test ./cmd/... ./internal/platform/...`
-  - `docker compose config`
+  - `go test ./cmd/... ./internal/platform/... ./internal/app/...`
 
-### T01 数据库与迁移基线
+### T01 SQL、迁移与 Repository 基线
 
-- 任务目标
-  - 落地数据库初始化、迁移体系、种子数据策略
-- 前置依赖
-  - `T00`
-- 推荐 AI 类型
-  - `Database AI`
-- 主写范围
+- 任务目标：
+  - 将 `sql/001_init_schema.sql` 转换为可执行迁移
+  - 建立 PostgreSQL Repository 基线和测试夹具
+- 前置依赖：`T00`
+- 主写范围：
   - `sql/`
   - `migrations/`
-  - `internal/platform/db/`
-  - `tests/integration/db/`
-- 交付物
-  - 初始化 DDL
-  - 迁移框架
-  - 基础种子数据脚本
-  - Repository 基础设施
-- 验收要求
-  - 空库可以初始化到最新版本
-  - 迁移具备幂等性和顺序性
-  - 核心表、索引、updated_at 触发器可正常创建
-  - 基础租户、系统角色种子数据可正确落库
-- 自动化验收
+  - `internal/repository/`
+- 关键交付物：
+  - 初始迁移
+  - `set_updated_at` 触发器、索引、必要种子数据
+  - 仓库级数据库测试基线
+- 验收要求：
+  - 空库可以完整初始化
+  - 所有表包含 `id`、`created_at`、`updated_at`
+  - 核心表、约束、索引与设计文档一致
+- 自动化验收：
   - `make ci-task-T01`
-  - `make db-verify`
-  - `go test ./internal/platform/db/... ./tests/integration/db/...`
+  - `make verify-ddl`
+  - `make test-repository`
 
-### T02 OpenAPI / 共享契约 / 错误码
+### T02 OpenAPI、错误码与共享契约
 
-- 任务目标
-  - 冻结控制面 API、Agent API、错误码、DTO、配置契约
-- 前置依赖
-  - `T00`
-- 推荐 AI 类型
-  - `Contract AI`
-- 主写范围
+- 任务目标：
+  - 冻结控制面 REST API、Agent 协议、错误码和共享 DTO
+- 前置依赖：`T00`
+- 主写范围：
   - `api/openapi/`
-  - `internal/platform/httpapi/`
-  - `internal/platform/errors/`
-  - `internal/platform/config/`
-- 交付物
-  - 控制面 OpenAPI 文档
-  - Agent 协议文档
-  - 错误码规范
-  - 请求/响应 DTO
-- 验收要求
-  - 控制面和前端共用的接口字段不歧义
-  - Agent 协议与控制面派发模型一致
-  - 关键资源接口至少覆盖：auth、domains、ca-accounts、dns-credentials、certificate-assets、jobs、nodes、discoveries、audit、dashboard
-  - 接口变更具备 diff 校验
-- 自动化验收
+  - 共享错误码/DTO
+- 关键交付物：
+  - OpenAPI 初版
+  - Agent 注册、心跳、取任务、回传结果契约
+  - 统一错误响应格式
+- 验收要求：
+  - 契约覆盖一期一级导航对应页面和核心运行链路
+  - 错误码具备稳定语义，不把中文直接写入协议字段
+  - 契约变更有版本说明
+- 自动化验收：
   - `make ci-task-T02`
   - `make openapi-verify`
-  - `go test ./internal/platform/httpapi/... ./internal/platform/errors/...`
+  - `make test-contracts`
 
 ### T03 身份、租户上下文与 RBAC
 
-- 任务目标
-  - 落地登录、会话、API Key、租户上下文和资源级权限
-- 前置依赖
-  - `T01`
-  - `T02`
-- 推荐 AI 类型
-  - `Backend Identity AI`
-- 主写范围
-  - `internal/controlplane/identity/`
-  - `tests/integration/identity/`
-- 交付物
-  - 用户登录/登出/me
-  - refresh token 会话模型
-  - API Key 鉴权
-  - tenant/project/environment 上下文装载
-  - 基础 RBAC 中间件
-- 验收要求
-  - 账号密码登录可用
-  - API Key 与 JWT 均可访问受保护接口
-  - 跨租户访问被阻断
-  - 权限不足返回统一错误码并产生日志/审计
-  - 登出后 refresh token 失效
-- 自动化验收
+- 任务目标：
+  - 完成账号密码登录、刷新、退出、当前用户上下文、RBAC 校验
+- 前置依赖：`T01` `T02`
+- 主写范围：
+  - `internal/domain/identity/`
+  - `internal/domain/tenancy/`
+  - `internal/application/command/auth/`
+  - `internal/application/query/authcontext/`
+- 关键交付物：
+  - 登录/登出/刷新 token
+  - 租户/项目/环境上下文切换
+  - 角色绑定和权限判定中间件
+  - 用户语言偏好存取
+- 验收要求：
+  - 受保护 API 必须做鉴权和权限校验
+  - 多租户隔离正确
+  - 前端顶栏上下文与语言偏好有后端来源
+- 自动化验收：
   - `make ci-task-T03`
-  - `go test ./internal/controlplane/identity/... ./tests/integration/identity/...`
-  - `make test-auth-contract`
+  - `go test ./internal/domain/identity/... ./internal/domain/tenancy/...`
+  - `make test-integration-auth`
 
-### T04 域名、CA 账户与 DNS 凭据治理
+### T04 域名、DNS 凭据与 CA 账户治理
 
-- 任务目标
-  - 落地域名资产、DNS 凭据、ACME 账户管理及其状态治理
-- 前置依赖
-  - `T01`
-  - `T02`
-- 推荐 AI 类型
-  - `Backend Domain AI`
-- 主写范围
-  - `internal/controlplane/domainmgr/`
-  - `internal/controlplane/issuer/account/`
-  - `tests/integration/domainmgr/`
-- 交付物
-  - 域名资产 CRUD
-  - DNS 凭据 CRUD、启停用、轮换状态
-  - ACME 账户 CRUD、能力查询、状态校验
-  - 域名与 DNS 凭据绑定
-- 验收要求
-  - 同环境下域名唯一
-  - 只能绑定同环境 DNS 凭据和 CA 账户
-  - 泛域名策略与 challenge 类型约束生效
-  - 域名验证记录、TXT 操作历史可查询
-- 自动化验收
+- 任务目标：
+  - 建立域名资产、DNS 凭据、CA 账户和能力元数据的治理能力
+- 前置依赖：`T01` `T02`
+- 主写范围：
+  - `internal/domain/domains/`
+  - `internal/domain/dnscredentials/`
+  - `internal/domain/issuer/`
+  - `internal/application/command/domains/`
+  - `internal/application/command/caaccounts/`
+- 关键交付物：
+  - 域名管理 API
+  - 阿里云 DNS 凭据管理 API
+  - Let's Encrypt CA 账户管理 API
+  - 域名级验证状态、TXT 操作历史模型
+- 验收要求：
+  - CA 列表和能力必须从后端返回
+  - 域名和 DNS 凭据操作纳入审计
+  - 域名与环境、项目、租户边界正确
+- 自动化验收：
   - `make ci-task-T04`
-  - `go test ./internal/controlplane/domainmgr/... ./internal/controlplane/issuer/account/... ./tests/integration/domainmgr/...`
-  - `make test-domain-governance`
+  - `go test ./internal/domain/domains/... ./internal/domain/dnscredentials/... ./internal/domain/issuer/...`
+  - `make test-integration-domain-governance`
 
-### T05 Job / Lease / Scheduler / Worker 框架
+### T05 Job、Lease 与 Scheduler
 
-- 任务目标
-  - 落地异步任务系统、`SKIP LOCKED` claim/lease、重试与过期回收
-- 前置依赖
-  - `T01`
-  - `T02`
-- 推荐 AI 类型
-  - `Backend Scheduler AI`
-- 主写范围
-  - `internal/controlplane/job/`
-  - `internal/controlplane/scheduler/`
-  - `internal/platform/lock/`
-  - `tests/integration/job/`
-- 交付物
-  - Job 创建与查询
-  - Claim / renew / reap
-  - JobAttempt 记录
-  - Worker 基础执行框架
-- 验收要求
-  - 多 worker 下同一 job 不会被并发执行
-  - worker 崩溃后 lease 能回收
-  - JobAttempt 能完整记录每次执行
-  - retry / failed / timed_out 流转符合设计
-- 自动化验收
+- 任务目标：
+  - 建立 `jobs + job_attempts + SKIP LOCKED + lease` 调度基线
+- 前置依赖：`T01` `T02`
+- 主写范围：
+  - `internal/domain/job/`
+  - `internal/scheduler/`
+  - `internal/application/command/jobs/`
+- 关键交付物：
+  - claim/lease/reaper/retry/backoff
+  - 作业状态流转
+  - 续期扫描与发现计划任务基线
+- 验收要求：
+  - 多副本并发 claim 不重复消费
+  - worker 崩溃后 lease 能被回收
+  - job\_attempts 保留完整执行历史
+- 自动化验收：
   - `make ci-task-T05`
-  - `go test ./internal/controlplane/job/... ./internal/controlplane/scheduler/... ./tests/integration/job/...`
-  - `make test-job-lease`
+  - `go test ./internal/domain/job/... ./internal/scheduler/...`
+  - `make test-integration-scheduler`
 
-### T06 ACME / 工作流 / Challenge 编排
+### T06 审计、证据、系统设置与 Webhook
 
-- 任务目标
-  - 落地 `CertificateRequest -> IssueWorkflow -> WorkflowChallenge` 主链路
-- 前置依赖
-  - `T04`
-  - `T05`
-  - `T02`
-- 推荐 AI 类型
-  - `Backend Workflow AI`
-- 主写范围
-  - `pkg/protocol/acme/`
-  - `internal/controlplane/certificate/`
-  - `internal/controlplane/workflow/`
-  - `tests/integration/workflow/`
-- 交付物
-  - ACME 账户、order、authorization、finalize、download 封装
-  - 申请单和工作流状态机
-  - HTTP-01 / DNS-01 challenge 编排
-  - 证书版本生成逻辑
-- 验收要求
-  - 新申请与续期共用同一工作流模型
-  - `HTTP-01` 和 `DNS-01` 路由都能推进到 `issued`
-  - 失败时能写入结构化错误并进入正确状态
-  - challenge 清理动作不会遗漏
-- 自动化验收
+- 任务目标：
+  - 完成审计事件、证据、导出记录、系统设置和基础 Webhook
+- 前置依赖：`T01` `T02`
+- 主写范围：
+  - `internal/domain/audit/`
+  - `internal/domain/settings/`
+  - `internal/application/command/settings/`
+  - `internal/application/query/audit/`
+- 关键交付物：
+  - 审计事件写入与查询
+  - 证据/导出记录
+  - 系统设置与租户级设置
+  - 基础 Webhook 发送与重试
+- 验收要求：
+  - 高风险动作必须有审计事件
+  - 导出记录和 Webhook 事件具备可追踪状态
+  - 设置修改受权限控制
+- 自动化验收：
   - `make ci-task-T06`
-  - `go test ./pkg/protocol/acme/... ./internal/controlplane/certificate/... ./internal/controlplane/workflow/... ./tests/integration/workflow/...`
-  - `make test-e2e-issue-http01`
-  - `make test-e2e-issue-dns01-mock`
+  - `go test ./internal/domain/audit/... ./internal/domain/settings/...`
+  - `make test-integration-audit`
 
-### T07 AgentHub / Agent 协议 / mTLS
+### T07 聚合查询层与控制台读模型
 
-- 任务目标
-  - 落地 Agent 注册、心跳、任务拉取、结果回传、mTLS
-- 前置依赖
-  - `T05`
-  - `T02`
-- 推荐 AI 类型
-  - `Backend AgentHub AI`
-- 主写范围
-  - `internal/controlplane/agenthub/`
-  - `internal/agent/bootstrap/`
-  - `internal/agent/mtls/`
-  - `internal/agent/heartbeat/`
-  - `internal/agent/poller/`
-  - `internal/agent/reporter/`
-  - `tests/integration/agenthub/`
-- 交付物
-  - Agent 注册令牌校验
-  - mTLS 身份建立
-  - 心跳与能力上报
-  - 任务 poll/progress/complete
-- 验收要求
-  - 不兼容 Agent 不能领取任务
-  - 被停用节点不能继续上报成功心跳
-  - 任务派发遵循能力匹配和环境隔离
-  - Agent 回报能写入 JobAttempt 和审计
-- 自动化验收
+- 任务目标：
+  - 建立面向页面的聚合查询 API
+- 前置依赖：`T03` `T04` `T05` `T06`
+- 主写范围：
+  - `internal/application/query/dashboard/`
+  - `domains/`
+  - `assets/`
+  - `delivery/`
+  - `discoveries/`
+  - `jobs/`
+  - `settings/`
+- 关键交付物：
+  - 仪表盘统计
+  - `AssetDetail / JobDetail / AgentDetail / DiscoveryDetail`
+  - 交付管理聚合查询
+  - 列表筛选、分页、风险计数
+- 验收要求：
+  - 页面聚合逻辑不落在 repository
+  - 查询结果满足前端页面设计的字段需要
+  - 所有查询遵守租户隔离和 RBAC
+- 自动化验收：
   - `make ci-task-T07`
-  - `go test ./internal/controlplane/agenthub/... ./internal/agent/... ./tests/integration/agenthub/...`
-  - `make test-agent-protocol`
+  - `go test ./internal/application/query/...`
+  - `make test-integration-query`
 
-### T08 部署连接器与现场验证
+### T08 ACME、签发工作流与 Challenge 编排
 
-- 任务目标
-  - 落地 RSA 私钥生成、HTTP-01 文件落地、NGINX/Tomcat 部署、验证和回滚
-- 前置依赖
-  - `T06`
-  - `T07`
-  - `T04`
-- 推荐 AI 类型
-  - `Agent Deployment AI`
-- 主写范围
-  - `internal/agent/keymgr/`
-  - `internal/agent/deploy/nginx/`
-  - `internal/agent/deploy/tomcat/`
-  - `internal/controlplane/deployment/`
-  - `tests/integration/deploy/`
-- 交付物
-  - RSA 私钥生成
-  - HTTP-01 present / cleanup
-  - NGINX 部署与 reload
-  - Tomcat PKCS12 生成与部署
-  - 失败回滚与部署后验证
-- 验收要求
-  - NGINX 成功部署后能返回生效证书指纹
-  - Tomcat 成功部署后能返回 keystore 生效验证结果
-  - 部署失败时回滚状态正确
-  - 部署记录与证据能串回资产详情
-- 自动化验收
+- 任务目标：
+  - 完成证书申请、ACME order/challenge/finalize、版本入库和续期流程
+- 前置依赖：`T04` `T05` `T02`
+- 主写范围：
+  - `internal/domain/certificaterequest/`
+  - `internal/domain/certificateasset/`
+  - `internal/domain/issueworkflow/`
+  - `internal/workflow/`
+  - `internal/driver/acme/`
+  - `internal/driver/dns/`
+- 关键交付物：
+  - 申请单与工作流状态机
+  - Let's Encrypt ACME 客户端封装
+  - DNS-01 控制面执行
+  - HTTP-01 编排与 challenge 跟踪
+  - 续期复用原 challenge 逻辑
+- 验收要求：
+  - `HTTP-01`、`DNS-01` 两条链路均可独立通过
+  - 状态机、失败分类、补偿逻辑与详细设计一致
+  - 幂等键和重复提交处理正确
+- 自动化验收：
   - `make ci-task-T08`
-  - `go test ./internal/agent/keymgr/... ./internal/agent/deploy/... ./internal/controlplane/deployment/... ./tests/integration/deploy/...`
-  - `make test-agent-http01`
-  - `make test-agent-deploy-nginx`
-  - `make test-agent-deploy-tomcat`
+  - `go test ./internal/domain/certificaterequest/... ./internal/domain/certificateasset/... ./internal/domain/issueworkflow/... ./internal/workflow/...`
+  - `make test-integration-acme`
 
-### T09 发现、匹配与认领
+### T09 AgentHub 与 Agent 协议
 
-- 任务目标
-  - 落地 NGINX/Tomcat 配置扫描、本地证书解析、匹配、认领、drifted 判定
-- 前置依赖
-  - `T07`
-  - `T04`
-  - `T01`
-- 推荐 AI 类型
-  - `Agent Discovery AI`
-- 主写范围
+- 任务目标：
+  - 完成 Agent 注册、心跳、能力上报、部署目标治理、任务拉取和结果回传
+- 前置依赖：`T05` `T02`
+- 主写范围：
+  - `internal/domain/agentnode/`
+  - `internal/domain/deploymenttarget/`
+  - `internal/application/command/nodes/`
+  - `internal/application/command/targets/`
+  - `internal/driver/agenttransport/`
+  - `internal/agent/bootstrap/`
+- 关键交付物：
+  - 节点注册 token
+  - 节点状态管理
+  - 部署目标 CRUD 与节点绑定关系
+  - 任务派发协议
+  - 结果回报与错误语义
+- 验收要求：
+  - pull 模式成立，控制面不主动打入客户网络
+  - 节点能力与任务匹配正确
+  - 节点离线、版本不兼容、心跳超时能被识别
+- 自动化验收：
+  - `make ci-task-T09`
+  - `go test ./internal/domain/agentnode/... ./internal/domain/deploymenttarget/... ./internal/agent/...`
+  - `make test-integration-agenthub`
+
+### T10 NGINX 部署与验证
+
+- 任务目标：
+  - 完成 NGINX 证书部署、reload、回滚与部署后验证
+- 前置依赖：`T08` `T09`
+- 主写范围：
+  - `internal/agent/deploy/nginx/`
+  - `internal/agent/verify/nginx/`
+- 关键交付物：
+  - PEM 文件落地
+  - 配置校验
+  - reload/rollback
+  - 部署记录回传
+- 验收要求：
+  - reload 失败时支持回滚
+  - 部署成功后能够验证服务已切换到新证书
+  - 结果写入部署记录和审计
+- 自动化验收：
+  - `make ci-task-T10`
+  - `go test ./internal/agent/deploy/nginx/... ./internal/agent/verify/nginx/...`
+  - `make test-integration-nginx-deploy`
+
+### T11 Tomcat 部署与验证
+
+- 任务目标：
+  - 完成 Tomcat(JSSE + PKCS12) 部署、重载/重启控制与验证
+- 前置依赖：`T08` `T09`
+- 主写范围：
+  - `internal/agent/deploy/tomcat/`
+  - `internal/agent/verify/tomcat/`
+- 关键交付物：
+  - PKCS12 生成/落地
+  - `server.xml` 或目标配置绑定
+  - 部署后验证与回滚
+- 验收要求：
+  - 一期仅支持 `JSSE + PKCS12`
+  - 不允许隐式扩张到 `JKS` 或其他变体
+  - 部署结果、失败原因和证据回传完整
+- 自动化验收：
+  - `make ci-task-T11`
+  - `go test ./internal/agent/deploy/tomcat/... ./internal/agent/verify/tomcat/...`
+  - `make test-integration-tomcat-deploy`
+
+### T12 发现、匹配与认领
+
+- 任务目标：
+  - 完成 NGINX/Tomcat 配置扫描、本地证书解析、发现记录和认领
+- 前置依赖：`T04` `T09` `T01`
+- 主写范围：
+  - `internal/domain/discovery/`
   - `internal/agent/discover/nginx/`
   - `internal/agent/discover/tomcat/`
-  - `internal/controlplane/discovery/`
-  - `tests/integration/discovery/`
-- 交付物
+  - `internal/application/command/discoveries/`
+- 关键交付物：
+  - 发现任务编排
   - NGINX/Tomcat 配置解析
-  - 本地证书 / PKCS12 元数据提取
-  - 资产匹配器
-  - 未纳管认领和忽略流程
-- 验收要求
-  - 能输出节点、服务、配置路径、证书指纹、到期时间
-  - 能区分 `matched / unmanaged / invalid / ignored`
-  - 认领后能建立 `DiscoveryRecord -> CertificateAsset` 关联
-  - 若现场版本与绑定版本不一致，能标记 `drifted`
-- 自动化验收
-  - `make ci-task-T09`
-  - `go test ./internal/agent/discover/... ./internal/controlplane/discovery/... ./tests/integration/discovery/...`
-  - `make test-discovery-nginx`
-  - `make test-discovery-tomcat`
+  - 证书指纹和有效期采集
+  - 未纳管认领/忽略/关联资产
+- 验收要求：
+  - 能定位服务、节点、配置路径、证书、到期日
+  - 认领后与资产台账建立稳定关联
+  - 重复发现不会产生脏数据
+- 自动化验收：
+  - `make ci-task-T12`
+  - `go test ./internal/domain/discovery/... ./internal/agent/discover/...`
+  - `make test-integration-discovery`
 
-### T10 审计、证据、Webhook、系统设置
+### T13 Vue 壳层、鉴权与国际化
 
-- 任务目标
-  - 落地审计链、证据归档、Webhook 外发、系统设置和导出记录
-- 前置依赖
-  - `T01`
-  - `T02`
-  - `T05`
-- 推荐 AI 类型
-  - `Backend Governance AI`
-- 主写范围
-  - `internal/controlplane/audit/`
-  - `internal/controlplane/evidence/`
-  - `internal/controlplane/notification/`
-  - `internal/controlplane/settings/`
-  - `tests/integration/governance/`
-- 交付物
-  - 审计事件写入与查询
-  - 证据存储引用和导出记录
-  - Webhook 投递与重试
-  - 系统设置读写
-- 验收要求
-  - 登录、申请、challenge、部署、发现、重试、取消等关键动作都能审计
-  - Webhook 失败进入 `retry`
-  - 系统设置修改可追溯
-  - 证据能关联资源并可查询
-- 自动化验收
-  - `make ci-task-T10`
-  - `go test ./internal/controlplane/audit/... ./internal/controlplane/evidence/... ./internal/controlplane/notification/... ./internal/controlplane/settings/... ./tests/integration/governance/...`
-  - `make test-webhook-retry`
+- 任务目标：
+  - 搭建正式 Vue 3 前端工程骨架，承接 HTML 原型
+- 前置依赖：`T00`
+- 主写范围：
+  - `web/console/src/app/`
+  - `web/console/src/shared/`
+  - `web/console/package.json`
+- 关键交付物：
+  - 路由、布局、菜单、顶栏
+  - 登录鉴权
+  - 语言切换 `zh-CN / en-US`
+  - API client、query key、状态管理基线
+- 验收要求：
+  - 顶栏包含版本、时间、角色、上下文、语言切换
+  - 路由守卫和登录跳转正确
+  - 不破坏现有 HTML 原型作为设计参考
+- 自动化验收：
+  - `make ci-task-T13`
+  - `make web-lint`
+  - `make web-test`
+  - `make web-build`
 
-### T11 Web 基础壳、鉴权与共享查询层
+### T14 前端治理页
 
-- 任务目标
-  - 落地前端基础壳、鉴权、路由、API client、共享查询层
-- 前置依赖
-  - `T02`
-  - `T03`
-- 推荐 AI 类型
-  - `Frontend Platform AI`
-- 主写范围
-  - `web/src/app/`
-  - `web/src/shared/`
-  - `web/src/router/`
-  - `web/tests/`
-- 交付物
-  - 登录页
-  - 路由守卫
-  - API client
-  - 错误处理与全局状态
-  - 基础布局和导航
-- 验收要求
-  - 未登录无法进入受保护页面
-  - 租户上下文切换影响接口请求
-  - 基础布局能挂载后续业务页面
-  - API 错误能统一展示
-- 自动化验收
-  - `make ci-task-T11`
-  - `pnpm -C web lint`
-  - `pnpm -C web test`
-  - `pnpm -C web build`
+- 任务目标：
+  - 完成域名管理、CA 账户、交付管理、系统设置等治理型页面
+- 前置依赖：`T13` `T04` `T07` `T09`
+- 主写范围：
+  - `web/console/src/modules/domains/`
+  - `web/console/src/modules/ca-accounts/`
+  - `web/console/src/modules/delivery/`
+  - `web/console/src/modules/settings/`
+- 关键交付物：
+  - 列表页、详情页、表单页、风险摘要
+  - 部署目标/节点双页签
+  - 权限控制和高风险动作确认
+- 验收要求：
+  - 页面字段与前端页面设计一致
+  - 与 Query API 对齐，不在前端拼凑领域规则
+  - 国际化键完整
+- 自动化验收：
+  - `make ci-task-T14`
+  - `make web-test-governance`
+  - `make web-build`
 
-### T12A 前端治理页
+### T15 前端运行页
 
-- 任务目标
-  - 实现治理类页面：域名、CA 账户、部署目标、节点、系统设置
-- 前置依赖
-  - `T11`
-  - `T04`
-  - `T07`
-  - `T10`
-- 推荐 AI 类型
-  - `Frontend Governance AI`
-- 主写范围
-  - `web/src/modules/domains/`
-  - `web/src/modules/ca-accounts/`
-  - `web/src/modules/targets/`
-  - `web/src/modules/nodes/`
-  - `web/src/modules/settings/`
-- 交付物
-  - 治理页列表和详情
-  - 表单与状态展示
-  - 节点详情与能力视图
-  - 系统设置页
-- 验收要求
-  - 关键治理对象可增删改查
-  - 状态字段与后端状态机一致
-  - 表单校验与后端约束一致
-  - 详情页可跳转到相关作业或审计
-- 自动化验收
-  - `make ci-task-T12A`
-  - `pnpm -C web test -- domains ca-accounts targets nodes settings`
-  - `pnpm -C web build`
+- 任务目标：
+  - 完成仪表盘、证书资产、申请向导、作业中心、发现结果、审计页面
+- 前置依赖：`T13` `T07` `T08` `T12` `T06`
+- 主写范围：
+  - `web/console/src/modules/dashboard/`
+  - `web/console/src/modules/assets/`
+  - `web/console/src/modules/jobs/`
+  - `web/console/src/modules/discoveries/`
+  - `web/console/src/modules/audit/`
+- 关键交付物：
+  - `证书资产` 内发起申请
+  - 资产详情、版本、部署、发现、作业、审计视图
+  - 作业详情和发现认领交互
+- 验收要求：
+  - 主业务链可串起：
+    - `域名管理 -> 证书资产(发起申请) -> 作业中心 -> 证书资产`
+  - 风险状态、错误状态、空状态完整
+  - 详情页能直接进入排障路径
+- 自动化验收：
+  - `make ci-task-T15`
+  - `make web-test-runtime`
+  - `make web-build`
 
-### T12B 前端运行页
+### T16 集成、E2E、CI 与交付基线
 
-- 任务目标
-  - 实现运行类页面：仪表盘、证书资产、证书申请、作业、发现、审计
-- 前置依赖
-  - `T11`
-  - `T06`
-  - `T09`
-  - `T10`
-- 推荐 AI 类型
-  - `Frontend Operations AI`
-- 主写范围
-  - `web/src/modules/dashboard/`
-  - `web/src/modules/assets/`
-  - `web/src/modules/requests/`
-  - `web/src/modules/jobs/`
-  - `web/src/modules/discoveries/`
-  - `web/src/modules/audit/`
-- 交付物
-  - Dashboard
-  - 资产列表与详情
-  - 申请表单
-  - JobDetail
-  - DiscoveryDetail
-  - 审计查询页
-- 验收要求
-  - 能从申请页触发申请并看到作业跟踪
-  - 资产详情能串起版本、部署、发现、审计
-  - 作业详情能展示 attempts 和错误信息
-  - 发现结果能执行认领或忽略
-- 自动化验收
-  - `make ci-task-T12B`
-  - `pnpm -C web test -- dashboard assets requests jobs discoveries audit`
-  - `pnpm -C web build`
-
-### T13 集成、E2E、CI 与交付基线
-
-- 任务目标
-  - 形成可持续回归的集成测试、端到端测试和 CI 流水线
-- 前置依赖
-  - `T03`
-  - `T06`
-  - `T08`
-  - `T09`
-  - `T10`
-  - `T12A`
-  - `T12B`
-- 推荐 AI 类型
-  - `Integration AI`
-- 主写范围
-  - `tests/e2e/`
-  - `tests/integration/`
+- 任务目标：
+  - 打通一期完整链路并建立 CI/CD 门禁
+- 前置依赖：`T03` `T08` `T10` `T11` `T12` `T14` `T15`
+- 主写范围：
+  - `tests/`
   - `scripts/`
   - `.github/workflows/`
-- 交付物
-  - E2E 用例
-  - 集成测试编排
-  - CI job
-  - 失败排障说明
-- 验收要求
-  - 至少覆盖 4 条主链路：
-    - `HTTP-01` 新申请到部署完成
-    - `DNS-01` 新申请到部署完成
-    - 发现到认领
-    - 失败重试与回滚
-  - 后端、前端、Agent 的核心回归都进入 CI
-  - PR 能基于自动化验收结果判断是否可合并
-- 自动化验收
-  - `make ci-task-T13`
+  - `docker/`
+- 关键交付物：
+  - 本地和 CI 集成编排
+  - Mock ACME / AliDNS / Agent fixture
+  - NGINX/Tomcat E2E 场景
+  - 波次级和发布级验收脚本
+- 验收要求：
+  - 至少覆盖四条关键链路：
+    - `HTTP-01 -> NGINX 签发部署`
+    - `DNS-01 -> Tomcat 签发部署`
+    - `续期 -> 再部署`
+    - `发现 -> 认领 -> 资产关联`
+  - CI 失败能定位到具体任务包
+  - 文档、SQL、OpenAPI、前后端实现保持一致
+- 自动化验收：
+  - `make ci-task-T16`
   - `make test-integration`
   - `make test-e2e-http01`
   - `make test-e2e-dns01`
-  - `pnpm -C web build`
 
-## 7. 集成顺序与合并策略
+## 7. 自动化验收体系
 
-### 7.1 建议合并顺序
+### 7.1 统一命名规则
 
-1. `T00`
-2. `T01 + T02`
-3. `T03 + T04 + T05 + T10 + T11`
-4. `T06 + T07 + T12A`
-5. `T08 + T09 + T12B`
-6. `T13`
+每个任务必须提供：
 
-### 7.2 合并门禁
+- `make ci-task-Txx`
+- 至少一个模块级测试命令
+- 如涉及接口或 SQL，必须提供契约或迁移校验命令
 
-每次合并至少检查：
+推荐总命令集合：
 
-- 当前任务包自动化验收全部通过
-- 依赖任务包契约无破坏
-- `git diff --check` 通过
-- 关键目录无越界修改
+- `make fmt`
+- `make lint`
+- `make test-unit`
+- `make test-integration`
+- `make web-lint`
+- `make web-test`
+- `make web-build`
+- `make verify-ddl`
+- `make openapi-verify`
 
-### 7.3 冲突处理原则
+### 7.2 领域专项验收要求
 
-- 若两个 AI 同时需要修改共享契约，先冻结 `T02` 产物，再继续开发
-- 若运行页和治理页都依赖同一前端共享组件，由 `T11` 统一收口
-- 若部署与发现都依赖 Agent 协议变更，由 `T07` 先升级协议，再让 `T08 / T09` 跟进
+不同任务除了通用测试，还必须覆盖：
 
-## 8. AI 自动化验收执行模板
+- 安全相关：
+  - 未授权
+  - 越权
+  - 跨租户访问
+- 状态机相关：
+  - 正常路径
+  - 重试路径
+  - 超时路径
+  - 幂等重复提交
+- 外部交互相关：
+  - 上游超时
+  - 上游错误码
+  - 部分成功后的补偿
+- Agent 相关：
+  - 离线
+  - 心跳超时
+  - 结果重复回传
+- 前端相关：
+  - 空状态
+  - 错误状态
+  - 加载状态
+  - 国际化切换
 
-建议每个 AI 任务完成后按如下模板输出：
+### 7.3 AI 验收执行规则
+
+- `Worker AI`
+  - 必须先跑本任务 `make ci-task-Txx`
+  - 输出本次改动、已知限制、验收结果摘要
+- `Checker AI`
+  - 必须在独立 worktree 重跑相同命令
+  - 必须检查写入范围是否越界
+- `Integrator AI`
+  - 必须在集成分支重跑：
+    - 当前 wave 全量任务命令
+    - 对应 wave 的回归命令
+
+## 8. 合并与集成策略
+
+### 8.1 合并顺序
+
+- 先合并 `T00`
+- 再合并 `T01`、`T02`
+- Wave 2 内任务可并行开发，但必须在 `T01/T02` 合并后开始 rebase
+- `T07` 必须在 `T03/T04/T05/T06` 基本稳定后再合并
+- `T10/T11/T12` 必须消费稳定的 `T08/T09`
+- `T16` 最后进入
+
+### 8.2 合并门禁
+
+任务进入主干前必须满足：
+
+- 对应 `make ci-task-Txx` 通过
+- Checker AI 复验通过
+- 主写目录未越界
+- 未擅自修改共享冻结文件
+- 需求、设计、接口、SQL 不冲突
+
+### 8.3 冲突处理原则
+
+- 共享契约冲突：
+  - 由 `Orchestrator` 或 `Doc/Contract Keeper` 统一裁决
+- 同目录冲突：
+  - 优先保持主写任务所有权
+- 状态机或数据库模型冲突：
+  - 以 `doc/一期GA详细设计.md` 和 `sql/001_init_schema.sql` 为基线重新收口
+
+## 9. AI 派工模板
+
+### 9.1 Worker 派工模板
 
 ```text
-TASK_ID: Txx
-CHANGED_PATHS:
-- ...
+任务ID：Txx
+任务名称：
+目标：
+输入文档：
+- doc/需求说明书.md
+- doc/一期GA详细设计.md
+- doc/前端页面设计.md
+- doc/后端代码结构评估与重构建议.md
 
-ACCEPTANCE_COMMANDS:
+允许主写目录：
+可读目录：
+禁止修改目录：
+
+必须交付：
+- 代码
+- 测试
+- 文档/契约更新
 - make ci-task-Txx
-- ...
 
-RESULT:
-- PASS / FAIL
+自动化验收：
+- make ci-task-Txx
+- 其他专项命令
 
-NOTES:
-- 依赖接口是否变更
-- 是否需要 Integrator 做二次集成
+结果汇报格式：
+- 变更摘要
+- 主要文件
+- 风险点
+- 验收结果
 ```
 
-## 9. 最终交付判定
+### 9.2 Checker 派工模板
 
-一期 GA 进入可交付状态，必须满足：
+```text
+任务ID：Txx
+职责：
+- 独立 worktree 拉取任务分支
+- 只做验收和复核，不做大面积实现
 
-- 核心闭环可跑通：
-  - 申请
-  - challenge
-  - 签发
-  - 部署
-  - 验证
-  - 发现
-  - 续期
-- 控制台核心页面可用：
-  - 登录
-  - 域名管理
-  - 证书资产
-  - 证书申请
-  - 节点管理
-  - 作业中心
-  - 审计
-- 自动化验收闭环可用：
-  - 单元
-  - 契约
-  - 集成
-  - E2E
-  - 构建
+检查项：
+- 主写目录是否越界
+- 自动化验收是否通过
+- 是否破坏共享契约
+- 是否遗漏错误路径/幂等/权限测试
 
-这意味着 AI 并行研发的最终目标不是“代码都写完”，而是：
+输出：
+- 通过 / 不通过
+- 问题列表
+- 复验命令和结果
+```
 
-- 每个任务包可独立完成
-- 每个任务包可独立验收
-- 所有任务包可以按依赖图顺序无缝集成
+## 10. 最终交付判定
+
+只有当以下条件全部满足，才算一期研发计划执行完成：
+
+- 所有任务包完成并通过对应 `make ci-task-Txx`
+- `T16` 的关键 E2E 场景全部通过
+- 文档、SQL、OpenAPI、前后端页面和实现一致
+- 一期成功标准全部可被演示或自动验证：
+  - 登录认证
+  - 双语切换
+  - 自动签发
+  - 自动续期
+  - 自动部署
+  - 部署后验证
+  - 发现与认领
+  - 审计和基础统计
+
+## 11. 核心建议
+
+如果只抓一条原则：
+
+**先冻结** **`SQL + OpenAPI + Query API`，再并行做业务实现和前端页面。**
+
+如果这三层不先收口，多 AI 并行很快会在以下地方反复返工：
+
+- 状态机字段不一致
+- 页面字段缺失
+- 作业状态和审计事件语义不一致
+- Agent 返回结果和控制台详情页对不上
+
+所以实际执行时，优先确保 `T01`、`T02`、`T07` 的质量，这三项是并行研发的稳定底座。

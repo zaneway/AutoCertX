@@ -2547,6 +2547,7 @@ Redis 不用于：
 | `display_name` | `varchar(128)` | not null | 显示名称 |
 | `email` | `varchar(255)` | null | 邮箱 |
 | `phone` | `varchar(32)` | null | 手机号 |
+| `locale` | `varchar(16)` | not null | 用户默认语言，如 `zh-CN / en-US` |
 | `status` | `varchar(32)` | not null | `active / locked / disabled` |
 | `last_login_at` | `timestamptz` | null | 最近登录时间 |
 | `created_at` | `timestamptz` | not null | 创建时间 |
@@ -3240,6 +3241,16 @@ Redis 不用于：
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
+- `PATCH /api/v1/auth/me/preferences`
+
+认证接口补充约定：
+
+- `GET /api/v1/auth/me` 必须返回：
+  - `locale`
+  - `available_locales`，一期固定为 `["zh-CN", "en-US"]`
+  - 当前角色、租户、项目、环境等顶栏所需上下文
+- `PATCH /api/v1/auth/me/preferences` 一期至少支持更新 `locale`
+- 前端语言切换后应优先调用偏好更新接口；离线或未登录原型场景可回退到本地存储
 
 ### 17.3 域名管理接口
 
@@ -3617,9 +3628,24 @@ Redis 不用于：
 ### 19.4 前端状态管理原则
 
 - `Pinia` 只管理登录态、租户上下文、少量 UI 状态
+- `Pinia` 应管理 `locale`、语言切换状态与用户偏好回写结果
 - 所有服务端数据走 `Vue Query`
 - 页面不直接拼 HTTP 请求
 - 详情页数据由后端聚合接口提供
+
+### 19.4A 国际化与语言切换策略
+
+- 一期支持 `zh-CN / en-US` 双语切换，后续扩展更多语言时不更换技术路径
+- 语言切换入口放置在顶栏右上角，与 `版本 / 当前时间 / 当前角色 / 上下文` 并列
+- 文案来源必须使用文案键，不允许将按钮文案、状态文案、提示语写死在组件中
+- 状态码、枚举值、接口返回字段保持稳定英文 machine-readable key，由前端按 locale 映射展示文本
+- 默认语言优先级：
+  - 用户显式切换结果
+  - 用户默认 `locale`
+  - 租户默认 `locale`
+  - 系统默认 `zh-CN`
+- 时间、日期、数字格式需跟随 locale 展示；原始值保持后端标准格式
+- 一期原型和正式前端都必须支持在不刷新业务上下文的情况下完成语言切换
 
 ### 19.5 一级菜单核心功能与流程
 
