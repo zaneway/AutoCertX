@@ -319,7 +319,7 @@ flowchart LR
 | `T03` | 身份、租户上下文与 RBAC             | `Wave 2` | 已完成 | 身份、租户上下文、权限中间件、语言偏好与 `/api/v1/auth/*` 基线已落地，`make ci-task-T03` 已通过 |
 | `T04` | 域名、DNS 凭据与 CA 账户治理         | `Wave 2` | 已完成 | 域名、DNS 凭据、CA 账户治理服务与 `/api/v1/domains`、`/api/v1/dns-credentials`、`/api/v1/ca-accounts` 基线已落地，`make ci-task-T04` 已通过 |
 | `T05` | Job、Lease 与 Scheduler      | `Wave 2` | 已完成 | `job` 域模型、planner/worker/reaper、PostgreSQL `SKIP LOCKED` 仓储、数据库级集成验证与 `make ci-task-T05` 已落地并通过 |
-| `T06` | 审计、证据、系统设置与 Webhook       | `Wave 2` | 未开始 | 等待执行 |
+| `T06` | 审计、证据、系统设置与 Webhook       | `Wave 2` | 已完成 | 审计域/设置域、`/api/v1/audit-events*` 与 `/api/v1/settings/*`、同步 CSV 导出产物、导出记录与 Webhook 状态跟踪、`make ci-task-T06` 基线已落地 |
 | `T07` | 聚合查询层与控制台读模型               | `Wave 3` | 未开始 | 等待执行 |
 | `T08` | ACME、签发工作流与 Challenge 编排   | `Wave 3` | 未开始 | 等待执行 |
 | `T09` | Agent 管理、部署目标治理与协议         | `Wave 3` | 未开始 | 等待执行 |
@@ -490,7 +490,7 @@ flowchart LR
   - `make ci-task-T04` 已通过
 - 实现差异说明：
   - 当前域名、DNS 凭据和 CA 账户治理均采用内存实现，尚未接入 PostgreSQL repository
-  - 审计当前通过 `AuditRecorder` 钩子占位记录，真正统一落审计域仍依赖 `T06`
+  - 统一审计落库/导出/设置控制已在 `T06` 接管，`T04` 仅保留面向治理命令的审计适配入口
 - 验收要求：
   - CA 列表和能力必须从后端返回
   - 域名和 DNS 凭据操作纳入审计
@@ -535,6 +535,7 @@ flowchart LR
 
 ### T06 审计、证据、系统设置与 Webhook
 
+- 执行状态：已完成（2026-04-21）
 - 任务目标：
   - 完成审计事件、证据、导出记录、系统设置和基础 Webhook
 - 前置依赖：`T01` `T02`
@@ -548,13 +549,20 @@ flowchart LR
   - 证据/导出记录
   - 系统设置与租户级设置
   - 基础 Webhook 发送与重试
+- 验证结果：
+  - 审计域、设置域、同步 CSV 导出与导出记录状态跟踪已落地
+  - `/api/v1/audit-events`、`/api/v1/audit-events/{id}`、`/api/v1/audit-events/export-csv`、`/api/v1/settings/*` 已接入认证与权限控制
+  - `go test ./...` 已通过
+- 实现差异说明：
+  - 当前导出采用“同步导出 + 落本地文件产物”模式，未引入异步导出作业
+  - Webhook 采用内存状态机和 stub deliverer 完成基础发送/重试状态跟踪，尚未接入真实外部投递驱动
 - 验收要求：
   - 高风险动作必须有审计事件
   - 导出记录和 Webhook 事件具备可追踪状态
   - 设置修改受权限控制
 - 自动化验收：
   - `make ci-task-T06`
-  - `go test ./internal/domain/audit/... ./internal/domain/settings/...`
+  - `make test-audit-settings`
   - `make test-integration-audit`
 
 ### T07 聚合查询层与控制台读模型

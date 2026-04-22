@@ -3305,14 +3305,29 @@ Redis 不用于：
 - `POST /api/v1/discoveries/{id}/claim`
 - `POST /api/v1/discoveries/{id}/ignore`
 
-### 17.7 审计与统计接口
+### 17.7 审计、系统设置与统计接口
 
 - `GET /api/v1/audit-events`
 - `GET /api/v1/audit-events/{id}`
+- `POST /api/v1/audit-events/export-csv`
+- `GET /api/v1/settings/webhooks`
+- `POST /api/v1/settings/webhooks`
+- `PUT /api/v1/settings/webhooks/{id}`
+- `GET /api/v1/settings/renewal-window`
+- `PUT /api/v1/settings/renewal-window`
+- `GET /api/v1/settings/security`
+- `PUT /api/v1/settings/security`
 - `GET /api/v1/dashboard/summary`
 - `GET /api/v1/dashboard/expiring-certificates`
 - `GET /api/v1/dashboard/job-failures`
 - `GET /api/v1/dashboard/discovery-anomalies`
+
+当前一期实现基线补充：
+
+- 审计列表接口支持按 `actor_id / action / resource_type / resource_id / start_time / end_time` 过滤。
+- `POST /api/v1/audit-events/export-csv` 采用同步导出实现，HTTP 响应直接返回 `text/csv` 文件流。
+- 同步导出链路仍需先创建 `export_records(status=running)`，文件落地后再推进为 `succeeded/failed`，并追加 `audit.export_csv` 审计事件。
+- Webhook 一期基线要求至少具备 `pending / delivering / succeeded / failed / retry` 状态跟踪，便于控制台和排障链路查询。
 
 ## 18. Agent 协议设计
 
@@ -3796,6 +3811,10 @@ Agent 必须受以下白名单限制：
 - 发现认领 / 忽略
 - 作业重试 / 取消
 - 角色权限变更
+- Webhook 新增 / 修改
+- 续期窗口设置修改
+- 基础安全设置修改
+- 审计导出动作
 
 ### 21.3 证据模型
 
