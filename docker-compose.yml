@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: autocertx
+      POSTGRES_USER: autocertx
+      POSTGRES_PASSWORD: autocertx
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autocertx -d autocertx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+  redis:
+    image: redis:latest
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis-data:/data
+
+volumes:
+  postgres-data:
+  redis-data:

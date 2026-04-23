@@ -72,6 +72,7 @@ CREATE TABLE users (
     display_name varchar(128) NOT NULL,
     email varchar(255),
     phone varchar(32),
+    locale varchar(16) NOT NULL DEFAULT 'zh-CN',
     status varchar(32) NOT NULL CHECK (status IN ('active', 'locked', 'disabled')),
     last_login_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
