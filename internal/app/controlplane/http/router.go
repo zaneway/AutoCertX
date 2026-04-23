@@ -9,7 +9,9 @@ import (
 	authcommand "github.com/zaneway/AutoCertX/internal/application/command/auth"
 	caaccountscmd "github.com/zaneway/AutoCertX/internal/application/command/caaccounts"
 	domainscmd "github.com/zaneway/AutoCertX/internal/application/command/domains"
+	nodescmd "github.com/zaneway/AutoCertX/internal/application/command/nodes"
 	settingscmd "github.com/zaneway/AutoCertX/internal/application/command/settings"
+	targetscmd "github.com/zaneway/AutoCertX/internal/application/command/targets"
 	auditquery "github.com/zaneway/AutoCertX/internal/application/query/audit"
 	authcontextquery "github.com/zaneway/AutoCertX/internal/application/query/authcontext"
 	dashboardquery "github.com/zaneway/AutoCertX/internal/application/query/dashboard"
@@ -30,6 +32,8 @@ type Deps struct {
 	AuthContextQuery  *authcontextquery.Service
 	DomainCommands    *domainscmd.Service
 	CAAccountCommands *caaccountscmd.Service
+	NodeCommands      *nodescmd.Service
+	TargetCommands    *targetscmd.Service
 	SettingsCommands  *settingscmd.Service
 	GovernanceQuery   *domainsquery.Service
 	SettingsQuery     *settingsquery.Service
@@ -75,6 +79,7 @@ func NewRouter(deps Deps) http.Handler {
 		})
 	}
 	registerGovernanceRoutes(mux, deps)
+	registerDeliveryRoutes(mux, deps)
 	registerAuditSettingsRoutes(mux, deps)
 	registerRuntimeQueryRoutes(mux, deps)
 

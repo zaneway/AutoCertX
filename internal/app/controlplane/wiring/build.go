@@ -9,13 +9,17 @@ import (
 	caaccountscmd "github.com/zaneway/AutoCertX/internal/application/command/caaccounts"
 	domainscmd "github.com/zaneway/AutoCertX/internal/application/command/domains"
 	jobscmd "github.com/zaneway/AutoCertX/internal/application/command/jobs"
+	nodescmd "github.com/zaneway/AutoCertX/internal/application/command/nodes"
 	settingscmd "github.com/zaneway/AutoCertX/internal/application/command/settings"
+	targetscmd "github.com/zaneway/AutoCertX/internal/application/command/targets"
 	auditquery "github.com/zaneway/AutoCertX/internal/application/query/audit"
 	dashboardquery "github.com/zaneway/AutoCertX/internal/application/query/dashboard"
 	domainsquery "github.com/zaneway/AutoCertX/internal/application/query/domains"
 	jobsquery "github.com/zaneway/AutoCertX/internal/application/query/jobs"
 	settingsquery "github.com/zaneway/AutoCertX/internal/application/query/settings"
+	"github.com/zaneway/AutoCertX/internal/domain/agentnode"
 	auditdomain "github.com/zaneway/AutoCertX/internal/domain/audit"
+	"github.com/zaneway/AutoCertX/internal/domain/deploymenttarget"
 	"github.com/zaneway/AutoCertX/internal/domain/dnscredentials"
 	"github.com/zaneway/AutoCertX/internal/domain/domains"
 	"github.com/zaneway/AutoCertX/internal/domain/issuer"
@@ -64,6 +68,8 @@ func Build(opts Options) (Result, error) {
 	domainService := domains.NewService()
 	dnsService := dnscredentials.NewService()
 	issuerService := issuer.NewService()
+	nodeService := agentnode.NewService()
+	targetService := deploymenttarget.NewService()
 	auditService := auditdomain.NewService()
 	settingsService := settingsdomain.NewService()
 	jobRepo := jobscmd.NewMemoryRepository()
@@ -91,6 +97,8 @@ func Build(opts Options) (Result, error) {
 		AuthContextQuery:  authContextService,
 		DomainCommands:    domainscmd.NewService(domainService, dnsService, domainsAuditRecorder{audit: auditService}),
 		CAAccountCommands: caaccountscmd.NewService(issuerService),
+		NodeCommands:      nodescmd.NewService(nodeService),
+		TargetCommands:    targetscmd.NewService(targetService),
 		SettingsCommands:  settingscmd.NewService(auditService, settingsService, ""),
 		GovernanceQuery:   governanceQuery,
 		SettingsQuery:     settingsQuery,

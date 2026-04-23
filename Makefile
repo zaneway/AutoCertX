@@ -1,12 +1,12 @@
 GO ?= go
 DOCKER_COMPOSE ?= docker compose
-GOFMT_DIRS := cmd internal/platform internal/app internal/repository internal/domain/identity internal/domain/tenancy internal/domain/job internal/domain/resource internal/domain/domains internal/domain/dnscredentials internal/domain/issuer internal/domain/agentnode internal/domain/deploymenttarget internal/domain/audit internal/domain/settings internal/application/command/auth internal/application/command/jobs internal/application/command/domains internal/application/command/caaccounts internal/application/command/settings internal/application/query/authcontext internal/application/query/audit internal/application/query/dashboard internal/application/query/domains internal/application/query/jobs internal/application/query/settings internal/scheduler api/openapi
-GO_PACKAGES := ./cmd/... ./internal/platform/... ./internal/app/... ./internal/repository/... ./internal/domain/identity/... ./internal/domain/tenancy/... ./internal/domain/job/... ./internal/domain/resource/... ./internal/domain/domains/... ./internal/domain/dnscredentials/... ./internal/domain/issuer/... ./internal/domain/agentnode/... ./internal/domain/deploymenttarget/... ./internal/domain/audit/... ./internal/domain/settings/... ./internal/application/command/auth/... ./internal/application/command/jobs/... ./internal/application/command/domains/... ./internal/application/command/caaccounts/... ./internal/application/command/settings/... ./internal/application/query/authcontext/... ./internal/application/query/audit/... ./internal/application/query/dashboard/... ./internal/application/query/domains/... ./internal/application/query/jobs/... ./internal/application/query/settings/... ./internal/scheduler/... ./api/openapi/...
+GOFMT_DIRS := cmd internal/platform internal/app internal/repository internal/domain/identity internal/domain/tenancy internal/domain/job internal/domain/resource internal/domain/domains internal/domain/dnscredentials internal/domain/issuer internal/domain/agentnode internal/domain/deploymenttarget internal/domain/audit internal/domain/settings internal/application/command/auth internal/application/command/jobs internal/application/command/domains internal/application/command/caaccounts internal/application/command/nodes internal/application/command/targets internal/application/command/settings internal/application/query/authcontext internal/application/query/audit internal/application/query/dashboard internal/application/query/domains internal/application/query/jobs internal/application/query/settings internal/scheduler api/openapi
+GO_PACKAGES := ./cmd/... ./internal/platform/... ./internal/app/... ./internal/repository/... ./internal/domain/identity/... ./internal/domain/tenancy/... ./internal/domain/job/... ./internal/domain/resource/... ./internal/domain/domains/... ./internal/domain/dnscredentials/... ./internal/domain/issuer/... ./internal/domain/agentnode/... ./internal/domain/deploymenttarget/... ./internal/domain/audit/... ./internal/domain/settings/... ./internal/application/command/auth/... ./internal/application/command/jobs/... ./internal/application/command/domains/... ./internal/application/command/caaccounts/... ./internal/application/command/nodes/... ./internal/application/command/targets/... ./internal/application/command/settings/... ./internal/application/query/authcontext/... ./internal/application/query/audit/... ./internal/application/query/dashboard/... ./internal/application/query/domains/... ./internal/application/query/jobs/... ./internal/application/query/settings/... ./internal/scheduler/... ./api/openapi/...
 LOCAL_CACHE_DIR := $(CURDIR)/.cache
 GO_BUILD_CACHE := $(LOCAL_CACHE_DIR)/go-build
 GO_TMP_DIR := $(LOCAL_CACHE_DIR)/go-tmp
 
-.PHONY: prepare-go-env fmt fmt-check fmt-check-t05 lint lint-t05 test-unit test verify-ddl test-repository openapi-verify test-contracts test-auth-domain test-domain-governance test-audit-settings test-agenthub test-query test-integration-auth test-integration-domain-governance test-integration-audit test-integration-query test-scheduler test-integration-scheduler run-controlplane run-agent dev-deps-up dev-deps-down dev-deps-logs web-lint web-test web-build ci-task-T00 ci-task-T01 ci-task-T02 ci-task-T03 ci-task-T04 ci-task-T05 ci-task-T06 ci-task-T07 ci-task-T09 ci-task-T13
+.PHONY: prepare-go-env fmt fmt-check fmt-check-t05 lint lint-t05 test-unit test verify-ddl test-repository openapi-verify test-contracts test-auth-domain test-domain-governance test-audit-settings test-agenthub test-query test-integration-auth test-integration-domain-governance test-integration-audit test-integration-query test-integration-agenthub test-scheduler test-integration-scheduler run-controlplane run-agent dev-deps-up dev-deps-down dev-deps-logs web-lint web-test web-build ci-task-T00 ci-task-T01 ci-task-T02 ci-task-T03 ci-task-T04 ci-task-T05 ci-task-T06 ci-task-T07 ci-task-T09 ci-task-T13
 
 prepare-go-env:
 	@mkdir -p $(GO_BUILD_CACHE) $(GO_TMP_DIR)
@@ -56,7 +56,7 @@ test-audit-settings: prepare-go-env
 	@GOCACHE=$(GO_BUILD_CACHE) GOTMPDIR=$(GO_TMP_DIR) $(GO) test ./internal/domain/audit/... ./internal/domain/settings/... ./internal/application/command/settings/... ./internal/application/query/audit/...
 
 test-agenthub: prepare-go-env
-	@GOCACHE=$(GO_BUILD_CACHE) GOTMPDIR=$(GO_TMP_DIR) $(GO) test ./internal/domain/agentnode/... ./internal/domain/deploymenttarget/...
+	@GOCACHE=$(GO_BUILD_CACHE) GOTMPDIR=$(GO_TMP_DIR) $(GO) test ./internal/domain/agentnode/... ./internal/domain/deploymenttarget/... ./internal/application/command/nodes/... ./internal/application/command/targets/...
 
 test-query: prepare-go-env
 	@GOCACHE=$(GO_BUILD_CACHE) GOTMPDIR=$(GO_TMP_DIR) $(GO) test ./internal/application/query/...
@@ -72,6 +72,9 @@ test-integration-audit: prepare-go-env
 
 test-integration-query: prepare-go-env
 	@GOCACHE=$(GO_BUILD_CACHE) GOTMPDIR=$(GO_TMP_DIR) $(GO) test ./internal/app/controlplane/... -run 'TestQuery'
+
+test-integration-agenthub: prepare-go-env
+	@GOCACHE=$(GO_BUILD_CACHE) GOTMPDIR=$(GO_TMP_DIR) $(GO) test ./internal/app/controlplane/http/... -run 'TestDelivery'
 
 test-scheduler: prepare-go-env
 	@GOCACHE=$(GO_BUILD_CACHE) GOTMPDIR=$(GO_TMP_DIR) $(GO) test ./internal/domain/job/... ./internal/application/command/jobs/... ./internal/scheduler/...
@@ -120,6 +123,6 @@ ci-task-T06: fmt-check lint test-audit-settings test-integration-audit openapi-v
 
 ci-task-T07: fmt-check lint test-query test-integration-query
 
-ci-task-T09: fmt-check lint test-agenthub openapi-verify test-contracts
+ci-task-T09: fmt-check lint test-agenthub test-integration-agenthub openapi-verify test-contracts
 
 ci-task-T13: web-lint web-test web-build
