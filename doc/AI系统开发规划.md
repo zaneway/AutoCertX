@@ -323,7 +323,7 @@ flowchart LR
 | `T06` | 审计、证据、系统设置与 Webhook       | `Wave 2` | 已完成 | 审计域/设置域、`/api/v1/audit-events*` 与 `/api/v1/settings/*`、同步 CSV 导出产物、导出记录与 Webhook 状态跟踪、`make ci-task-T06` 基线已落地 |
 | `T07` | 聚合查询层与控制台读模型               | `Wave 3` | Phase A 已完成 | Phase A 已落地 `dashboard/jobs/domains/settings` 四个 query 模块、控制面 GET 路由切换到 query service、`make test-integration-query` 与 `make ci-task-T07` 基线已补齐，`assets/delivery/discoveries` 与依赖真实资产/发现事实的查询延后到后续任务 |
 | `T08` | ACME、签发工作流与 Challenge 编排   | `Wave 3` | 契约冻结中 | 已启动与 `T09` 共用的 OpenAPI 契约切片，冻结生命周期枚举、证书申请幂等键、内部/Agent job type 基线 |
-| `T09` | Agent 管理、部署目标治理与协议         | `Wave 3` | 契约冻结中 | 已启动与 `T08` 共用的 OpenAPI 契约切片，冻结 Agent 能力码、节点状态、Agent job envelope 与结果回传字段 |
+| `T09` | Agent 管理、部署目标治理与协议         | `Wave 3` | Phase A 进行中 | 已启动与 `T08` 共用的 OpenAPI 契约切片，冻结 Agent 能力码、节点状态、Agent job envelope 与结果回传字段；已落地 `agentnode` 与 `deploymenttarget` domain 基线，`make ci-task-T09` 可执行并通过 |
 | `T10` | NGINX 部署与验证                | `Wave 4` | 未开始 | 等待执行 |
 | `T11` | Tomcat 部署与验证               | `Wave 4` | 未开始 | 等待执行 |
 | `T12` | 发现与认领                      | `Wave 4` | 未开始 | 等待执行 |
@@ -687,6 +687,14 @@ flowchart LR
   - `AgentCapabilityCode` 已冻结一期 GA 能力码：RSA 密钥、HTTP-01、NGINX/Tomcat 部署验证、NGINX/Tomcat 发现
   - `AgentJobType` 已冻结 Agent 可执行任务类型，不包含 `DNS-01`，避免 DNS 凭据下沉到 Agent
   - `AgentJob` 与回传请求已要求携带 `schema_version` 和 `operation_id`，支撑幂等执行、重复回传去重和排障关联
+- 当前 Phase A 已完成：
+  - `internal/domain/agentnode/` 已落地 Agent 注册事实、心跳事实、能力校验、标签更新、禁用和能力匹配
+  - `internal/domain/deploymenttarget/` 已落地 NGINX 与 Tomcat(JSSE + PKCS12) 部署目标治理、节点绑定/选择器和类型化字段校验
+  - `Makefile` 已补齐 `test-agenthub` 与 `ci-task-T09`，当前门禁覆盖 domain 基线与 OpenAPI 契约
+- Phase A 后续：
+  - 补 `internal/application/command/nodes/` 与 `internal/application/command/targets/`
+  - 接入控制面 `/api/v1/nodes*`、`/api/v1/deployment-targets*`
+  - 补 Agent 侧 `/agent/v1/register`、`heartbeat`、`jobs/poll`、`progress`、`complete` 传输适配
 
 ### T10 NGINX 部署与验证
 
