@@ -174,6 +174,8 @@ func (s *Service) Create(scope resource.Scope, input UpsertInput) (Credential, e
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Display names are unique per environment so operators can identify the
+	// credential referenced by governance settings unambiguously.
 	if existingID, ok := s.byEnvName[envKey]; ok {
 		return Credential{}, fmt.Errorf("credential display_name already exists under environment (%s): %w", existingID, resource.ErrConflict)
 	}
@@ -207,6 +209,7 @@ func (s *Service) Update(scope resource.Scope, id string, input UpsertInput) (Cr
 	oldKey := credential.Scope.EnvironmentKey() + "/" + credential.DisplayName
 	newKey := credential.Scope.EnvironmentKey() + "/" + newDisplayName
 	if newKey != oldKey {
+		// Renames preserve the same uniqueness contract as creation.
 		if existingID, exists := s.byEnvName[newKey]; exists && existingID != credential.ID {
 			return Credential{}, fmt.Errorf("credential display_name already exists under environment (%s): %w", existingID, resource.ErrConflict)
 		}
@@ -240,6 +243,8 @@ func (s *Service) Rotate(scope resource.Scope, id string) (Credential, error) {
 	}
 
 	now := s.now()
+	// Rotation only updates operational markers in the in-memory GA baseline; the
+	// secret replacement itself is intentionally out of scope for T04/T06.
 	credential.LastRotatedAt = &now
 	credential.Status = StatusActive
 	credential.UpdatedAt = now

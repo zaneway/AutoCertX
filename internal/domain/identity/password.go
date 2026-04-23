@@ -44,6 +44,8 @@ func (h PasswordHasher) Hash(password string) (string, int, error) {
 	}
 
 	key := pbkdf2SHA256([]byte(password), salt, h.Iterations, h.KeyBytes)
+	// Persist the algorithm, version, work factor, salt, and derived key together
+	// so future verification can evolve without out-of-band metadata.
 	encoded := strings.Join([]string{
 		"pbkdf2-sha256",
 		strconv.Itoa(passwordAlgoVersion),
@@ -80,6 +82,7 @@ func (h PasswordHasher) Verify(encoded string, password string) (bool, error) {
 	}
 
 	actual := pbkdf2SHA256([]byte(password), salt, iterations, len(expected))
+	// Constant-time comparison avoids leaking password correctness through timing.
 	if subtle.ConstantTimeCompare(actual, expected) != 1 {
 		return false, nil
 	}
@@ -103,6 +106,8 @@ func pbkdf2SHA256(password []byte, salt []byte, iterations int, keyLen int) []by
 		u := hmacSHA256(password, buffer)
 		t := make([]byte, len(u))
 		copy(t, u)
+		// PBKDF2 folds every iteration into the block accumulator via XOR to
+		// stretch the password into a brute-force-resistant derived key.
 		for i := 1; i < iterations; i++ {
 			u = hmacSHA256(password, u)
 			for j := range t {

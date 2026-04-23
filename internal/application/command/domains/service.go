@@ -127,6 +127,8 @@ func (s *Service) CreateDomain(ctx context.Context, scope resource.Scope, actorI
 		return domaindomain.Asset{}, translateDomainError(err)
 	}
 
+	// Domain writes emit audit events immediately so governance changes are
+	// observable even before later issuance workflows run.
 	s.recordAudit(ctx, AuditEvent{
 		Action:       "domain.create",
 		ResourceType: "domain_asset",
@@ -187,6 +189,8 @@ func (s *Service) BindDNSCredential(ctx context.Context, scope resource.Scope, a
 		return AcceptedResult{}, translateDNSCredentialError(err)
 	}
 
+	// Binding snapshots the provider type from the credential reference so the
+	// domain record can later drive DNS-01 workflows without another lookup.
 	asset, err := s.domains.BindDNSCredential(scope, domainID, ref.ID, ref.ProviderType)
 	if err != nil {
 		return AcceptedResult{}, translateDomainError(err)
@@ -304,6 +308,8 @@ func (s *Service) RotateDNSCredential(ctx context.Context, scope resource.Scope,
 		return AcceptedResult{}, translateDNSCredentialError(err)
 	}
 
+	// Rotation returns an accepted job id so the API contract matches other
+	// long-running governance mutations.
 	jobID := s.newJob()
 	s.recordAudit(ctx, AuditEvent{
 		Action:       "dns_credential.rotate",
@@ -335,6 +341,8 @@ func (s *Service) resolveDomainInput(scope resource.Scope, input DomainUpsertInp
 		return domainInput, nil
 	}
 
+	// DNS credential references are validated up front so the domain aggregate is
+	// persisted with a provider/type combination already known to be usable.
 	ref, err := s.dns.LookupAvailable(scope, strings.TrimSpace(input.DNSCredentialID))
 	if err != nil {
 		return domaindomain.UpsertInput{}, translateDNSCredentialError(err)

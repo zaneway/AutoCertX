@@ -24,6 +24,10 @@ const (
 	PermissionWildcard             Permission = "*"
 	PermissionAuthContextRead      Permission = "auth.context.read"
 	PermissionAuthPreferencesWrite Permission = "auth.preferences.write"
+	PermissionAuditRead            Permission = "audit.read"
+	PermissionAuditExport          Permission = "audit.export"
+	PermissionSettingsRead         Permission = "settings.read"
+	PermissionSettingsWrite        Permission = "settings.write"
 )
 
 // Tenant models the first-level isolation boundary.
@@ -122,13 +126,21 @@ var systemRolePermissions = map[string][]Permission{
 	"security_admin": {
 		PermissionAuthContextRead,
 		PermissionAuthPreferencesWrite,
+		PermissionAuditRead,
+		PermissionSettingsRead,
+		PermissionSettingsWrite,
 	},
 	"platform_engineer": {
 		PermissionAuthContextRead,
 		PermissionAuthPreferencesWrite,
+		PermissionAuditRead,
+		PermissionSettingsRead,
+		PermissionSettingsWrite,
 	},
 	"auditor": {
 		PermissionAuthContextRead,
+		PermissionAuditRead,
+		PermissionAuditExport,
 	},
 }
 

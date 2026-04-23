@@ -26,6 +26,8 @@ func (r Reaper) RunOnce(ctx context.Context) (int, error) {
 		return 0, err
 	}
 
+	// ReapExpired already persists per-job retry decisions; the scheduler only
+	// needs the recovery count for metrics and logs.
 	return len(reaped), nil
 }
 

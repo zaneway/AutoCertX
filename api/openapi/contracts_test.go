@@ -36,6 +36,7 @@ func TestOpenAPIHasRequiredPaths(t *testing.T) {
 
 	requiredPaths := []string{
 		"/api/v1/auth/login",
+		"/api/v1/auth/refresh",
 		"/api/v1/auth/me",
 		"/api/v1/domains",
 		"/api/v1/certificate-assets/requests",
@@ -46,6 +47,7 @@ func TestOpenAPIHasRequiredPaths(t *testing.T) {
 		"/api/v1/jobs/{id}/retry",
 		"/api/v1/discoveries/{id}/claim",
 		"/api/v1/dashboard/summary",
+		"/api/v1/audit-events/export-csv",
 		"/api/v1/settings/webhooks",
 		"/api/v1/settings/renewal-window",
 		"/api/v1/settings/security",
@@ -150,11 +152,13 @@ func TestContractsAgentProtocolUsesPostOnly(t *testing.T) {
 	}
 }
 
+// errorCatalog mirrors the published OpenAPI error catalogue file.
 type errorCatalog struct {
 	Version string           `json:"version"`
 	Errors  []catalogueError `json:"errors"`
 }
 
+// catalogueError represents one catalogued platform error contract.
 type catalogueError struct {
 	Code       string `json:"code"`
 	Message    string `json:"message"`

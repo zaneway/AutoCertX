@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	commandjobs "github.com/zaneway/AutoCertX/internal/application/command/jobs"
 	"github.com/zaneway/AutoCertX/internal/domain/job"
+	"github.com/zaneway/AutoCertX/internal/domain/resource"
 )
 
 // Store persists scheduler jobs into PostgreSQL using short transactions and SKIP LOCKED claim.
@@ -122,6 +123,8 @@ RETURNING id, tenant_id, project_id, environment_id, job_type, aggregate_type, a
 		return commandjobs.PlannedJob{}, fmt.Errorf("ensure planned insert: %w", err)
 	}
 
+	// ON CONFLICT DO NOTHING means a concurrent planner run already created the
+	// slot; load and return that existing job instead.
 	existing, err := s.Get(ctx, record.ID)
 	if errors.Is(err, job.ErrJobNotFound) {
 		existing, err = s.getByIdempotencyKey(ctx, record.IdempotencyKey)
@@ -147,6 +150,8 @@ func (s *Store) Claim(ctx context.Context, params commandjobs.ClaimParams) ([]co
 	}
 	defer rollback(tx)
 
+	// SKIP LOCKED lets multiple workers poll concurrently without blocking each
+	// other while still serializing claims per selected row.
 	rows, err := tx.QueryContext(ctx, `
 SELECT id, tenant_id, project_id, environment_id, job_type, aggregate_type, aggregate_id,
        status, priority, payload_jsonb, idempotency_key, lease_owner, lease_expire_at,
@@ -189,6 +194,8 @@ LIMIT $2`,
 			return nil, claimErr
 		}
 
+		// Persist the claimed job row and its new attempt in the same transaction so
+		// workers never observe one without the other.
 		if err := updateJobTx(ctx, tx, next); err != nil {
 			return nil, err
 		}
@@ -264,6 +271,8 @@ func (s *Store) Heartbeat(ctx context.Context, params commandjobs.HeartbeatParam
 		return commandjobs.HeartbeatResult{}, err
 	}
 
+	// Job lease and attempt heartbeat are updated together so reaper decisions and
+	// operator diagnostics are based on the same heartbeat timestamp.
 	if err := updateJobTx(ctx, tx, nextJob); err != nil {
 		return commandjobs.HeartbeatResult{}, err
 	}
@@ -309,6 +318,8 @@ func (s *Store) Complete(ctx context.Context, params commandjobs.CompleteParams)
 
 	retryScheduled := false
 	if params.Retryable && nextJob.CanRetry() && nextJob.Status != job.StatusSucceeded {
+		// Completion applies retry scheduling before commit so the persisted job row
+		// already reflects whether it re-entered the queue.
 		retried, retryErr := nextJob.ScheduleRetry(params.RetryDelay, params.Now)
 		if retryErr == nil {
 			nextJob = retried
@@ -348,6 +359,8 @@ func (s *Store) Cancel(ctx context.Context, params commandjobs.CancelParams) (jo
 
 	if current.LeaseOwner != "" {
 		if attempt, attemptID, attemptErr := getActiveAttemptForUpdateTx(ctx, tx, params.JobID, current.LeaseOwner); attemptErr == nil {
+			// Cancellation closes any in-flight attempt best-effort before flipping
+			// the job into its terminal cancelled state.
 			abandoned, finishErr := attempt.MarkAbandoned(params.Now, job.Failure{
 				Code:    "cancelled",
 				Message: "job cancelled",
@@ -441,6 +454,8 @@ LIMIT $2`,
 		var nextAttempt job.Attempt
 		switch attemptStatus {
 		case job.AttemptStatusAbandoned:
+			// Claimed-but-not-running work is classified as abandoned so operators can
+			// tell queue loss from runtime timeout.
 			nextAttempt, err = attempt.MarkAbandoned(params.Now, job.Failure{
 				Code:    "lease_expired",
 				Message: "worker lost before execution started",
@@ -457,6 +472,8 @@ LIMIT $2`,
 
 		retryScheduled := false
 		if nextJob.CanRetry() {
+			// Reaped jobs share the same retry policy as explicit failures to keep
+			// recovery behavior predictable across failure modes.
 			retried, retryErr := nextJob.ScheduleRetry(params.RetryPolicy.Delay(nextJob.AttemptCount), params.Now)
 			if retryErr == nil {
 				nextJob = retried
@@ -483,6 +500,45 @@ LIMIT $2`,
 	}
 
 	return results, nil
+}
+
+// List returns scheduler facts scoped to one environment boundary.
+func (s *Store) List(ctx context.Context, scope resource.Scope) ([]job.Job, error) {
+	if err := scope.Validate(); err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+SELECT id, tenant_id, project_id, environment_id, job_type, aggregate_type, aggregate_id,
+       status, priority, payload_jsonb, idempotency_key, lease_owner, lease_expire_at,
+       attempt_count, max_attempts, next_run_at, last_error_code, last_error_message,
+       version, created_at, updated_at
+FROM jobs
+WHERE tenant_id = $1
+  AND project_id = $2
+  AND environment_id = $3
+ORDER BY created_at ASC, id ASC`,
+		scope.TenantID,
+		scope.ProjectID,
+		scope.EnvironmentID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list jobs: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]job.Job, 0)
+	for rows.Next() {
+		record, scanErr := scanJob(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		items = append(items, record)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate jobs: %w", err)
+	}
+	return items, nil
 }
 
 func (s *Store) Get(ctx context.Context, jobID string) (job.Job, error) {
@@ -735,6 +791,7 @@ func completeJob(
 ) (job.Job, job.Attempt, error) {
 	switch params.ResultStatus {
 	case job.AttemptStatusSucceeded:
+		// Success updates both aggregates into their terminal succeeded state.
 		nextJob, err := current.MarkSucceeded(params.WorkerID, params.Now)
 		if err != nil {
 			return job.Job{}, job.Attempt{}, err
@@ -745,6 +802,8 @@ func completeJob(
 		}
 		return nextJob, nextAttempt, nil
 	case job.AttemptStatusTimedOut:
+		// Timeouts are treated as job-level timeout failures, which may still be
+		// retried later by the command service depending on policy.
 		nextJob, err := current.MarkTimedOut(params.WorkerID, failure, params.Now)
 		if err != nil {
 			return job.Job{}, job.Attempt{}, err

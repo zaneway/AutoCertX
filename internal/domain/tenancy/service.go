@@ -41,6 +41,8 @@ func (s *Service) Resolve(ctx context.Context, userID string, selection Selectio
 		return ResolvedContext{}, ErrNoAccessibleScope
 	}
 
+	// Build the active role set first so disabled bindings/roles never participate
+	// in later scope expansion.
 	roleIDs := make([]string, 0, len(bindings))
 	for _, binding := range bindings {
 		if binding.Status != StatusActive {
@@ -80,6 +82,8 @@ func (s *Service) Resolve(ctx context.Context, userID string, selection Selectio
 		return ResolvedContext{}, ErrScopeMismatch
 	}
 
+	// Environment is resolved last because project/tenant-scoped roles may expand
+	// the visible environment set underneath the chosen project.
 	environmentID, err := s.selectEnvironment(ctx, project.ID, selection.EnvironmentID, bindings, roleByID)
 	if err != nil {
 		return ResolvedContext{}, err
@@ -99,6 +103,8 @@ func (s *Service) Resolve(ctx context.Context, userID string, selection Selectio
 		if !ok {
 			continue
 		}
+		// Only bindings that actually cover the resolved tenant/project/
+		// environment triple contribute effective role codes.
 		if bindingAppliesToContext(binding, tenant.ID, project.ID, environment.ID) {
 			roleCodes = append(roleCodes, role.Code)
 		}
@@ -133,6 +139,8 @@ func (s *Service) selectTenant(
 	}
 
 	if requestedTenantID != "" {
+		// Explicit selections must already be reachable from the user's bindings;
+		// the resolver does not silently substitute another tenant.
 		if _, ok := tenantIDs[requestedTenantID]; !ok {
 			return "", ErrScopeMismatch
 		}
@@ -179,6 +187,8 @@ func (s *Service) selectProject(
 
 		switch role.ScopeLevel {
 		case ScopeTenant:
+			// Tenant-scoped roles implicitly cover every active project beneath the
+			// selected tenant.
 			for projectID := range projectByID {
 				accessible[projectID] = struct{}{}
 			}
@@ -187,6 +197,8 @@ func (s *Service) selectProject(
 				accessible[binding.ProjectID] = struct{}{}
 			}
 		case ScopeEnvironment:
+			// Environment-scoped roles still grant access to the parent project so
+			// the caller can materialize a coherent project context.
 			environment, err := s.repo.GetEnvironment(ctx, binding.EnvironmentID)
 			if err != nil || environment.Status != StatusActive {
 				continue
@@ -241,6 +253,8 @@ func (s *Service) selectEnvironment(
 
 		switch role.ScopeLevel {
 		case ScopeTenant, ScopeProject:
+			// Tenant/project roles inherit visibility to every active environment in
+			// the selected project.
 			for environmentID := range environmentByID {
 				accessible[environmentID] = struct{}{}
 			}

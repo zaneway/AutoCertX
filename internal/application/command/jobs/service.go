@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/zaneway/AutoCertX/internal/domain/job"
+	"github.com/zaneway/AutoCertX/internal/domain/resource"
 )
 
 // BackoffPolicy defines how long a retry should be delayed.
@@ -69,6 +70,7 @@ type Repository interface {
 	Complete(context.Context, CompleteParams) (CompletionResult, error)
 	Cancel(context.Context, CancelParams) (job.Job, error)
 	ReapExpired(context.Context, ReapParams) ([]ReapedLease, error)
+	List(context.Context, resource.Scope) ([]job.Job, error)
 	Get(context.Context, string) (job.Job, error)
 	Attempts(context.Context, string) ([]job.Attempt, error)
 }
@@ -280,6 +282,8 @@ func (s *Service) EnsurePlans(ctx context.Context, plans []PlanDefinition, now t
 	tickAt := coalesceTime(now, s.clock())
 
 	for _, plan := range plans {
+		// Reuse one tick timestamp for the whole planner pass so every recurring
+		// definition maps into the same deterministic slot boundary.
 		result, err := s.EnsurePlanned(ctx, plan, tickAt)
 		if err != nil {
 			return nil, err
@@ -313,6 +317,8 @@ func (s *Service) Heartbeat(ctx context.Context, params HeartbeatParams) (Heartb
 func (s *Service) Complete(ctx context.Context, params CompleteParams) (CompletionResult, error) {
 	params.Now = coalesceTime(params.Now, s.clock())
 	if params.Retryable && params.RetryDelay == 0 {
+		// Executors can mark a failure retryable without knowing the platform
+		// policy; the command layer computes the default exponential backoff.
 		record, err := s.repo.Get(ctx, params.JobID)
 		if err != nil {
 			return CompletionResult{}, err
@@ -359,6 +365,8 @@ func (p PlanDefinition) slot(now time.Time) (time.Time, string, error) {
 	}
 
 	now = coalesceTime(now, time.Now().UTC())
+	// The slot timestamp and idempotency key are both derived from the truncated
+	// interval so reruns within the same window cannot create duplicates.
 	slot := now.Truncate(p.Interval)
 	key := fmt.Sprintf("plan:%s:%s", strings.TrimSpace(p.Name), slot.Format(time.RFC3339))
 	return slot, key, nil

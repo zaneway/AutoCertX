@@ -203,6 +203,8 @@ func (s *Service) Create(scope resource.Scope, input UpsertInput) (Asset, error)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Domain names are unique within one environment boundary to avoid ambiguous
+	// governance targets for later certificate workflows.
 	if existingID, exists := s.byEnvDomain[envKey]; exists {
 		return Asset{}, fmt.Errorf("domain %q already exists under environment (%s): %w", asset.DomainName, existingID, resource.ErrConflict)
 	}
@@ -237,6 +239,8 @@ func (s *Service) Update(scope resource.Scope, id string, input UpsertInput) (As
 	oldKey := asset.Scope.EnvironmentKey() + "/" + asset.DomainName
 	newKey := asset.Scope.EnvironmentKey() + "/" + name
 	if newKey != oldKey {
+		// Renames enforce the same uniqueness rule as create before mutating the
+		// lookup index.
 		if existingID, exists := s.byEnvDomain[newKey]; exists && existingID != asset.ID {
 			return Asset{}, fmt.Errorf("domain %q already exists under environment (%s): %w", name, existingID, resource.ErrConflict)
 		}
@@ -350,6 +354,8 @@ func validateInput(input UpsertInput) (string, string, bool, error) {
 	domainType := TypeSingle
 	allowWildcard := false
 	if strings.HasPrefix(name, "*.") {
+		// Wildcard roots are a first-class domain type and must use DNS-01 because
+		// HTTP-01 cannot validate wildcard ownership.
 		domainType = TypeWildcardRoot
 		allowWildcard = true
 		if challengeType != ChallengeDNS01 {

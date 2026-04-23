@@ -23,24 +23,29 @@ const (
 	headerEnvironmentID = "X-Environment-Id"
 )
 
+// authHandler wires authentication routes to auth command/query services.
 type authHandler struct {
 	authService        *authcommand.Service
 	authContextService *authcontextquery.Service
 }
 
+// authLoginRequest captures username/password credentials from the login form.
 type authLoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+// authRefreshRequest carries the refresh token used to rotate an existing session.
 type authRefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+// localePreferencesRequest updates the authenticated user's locale preference.
 type localePreferencesRequest struct {
 	Locale string `json:"locale"`
 }
 
+// authLoginResponse returns tokens together with the resolved auth context.
 type authLoginResponse struct {
 	RequestID    string                `json:"request_id"`
 	AccessToken  string                `json:"access_token"`
@@ -49,16 +54,19 @@ type authLoginResponse struct {
 	Context      authcontextquery.View `json:"context"`
 }
 
+// authMeResponse wraps the frontend shell context payload.
 type authMeResponse struct {
 	RequestID string                `json:"request_id"`
 	Data      authcontextquery.View `json:"data"`
 }
 
+// emptyEnvelope is the common response shape for command endpoints without a body.
 type emptyEnvelope struct {
 	RequestID string `json:"request_id"`
 	Status    string `json:"status"`
 }
 
+// errorResponse is the normalized HTTP error envelope exposed to clients.
 type errorResponse struct {
 	RequestID string `json:"request_id"`
 	Error     struct {
@@ -68,11 +76,13 @@ type errorResponse struct {
 	} `json:"error"`
 }
 
+// errorDetail describes one field-level validation failure.
 type errorDetail struct {
 	Field  string `json:"field,omitempty"`
 	Reason string `json:"reason,omitempty"`
 }
 
+// principalContextKey stores the authenticated principal in request context.
 type principalContextKey struct{}
 
 func registerAuthRoutes(mux *http.ServeMux, handler authHandler) {
@@ -111,6 +121,8 @@ func (h authHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Login resolves both identity and the requested tenant scope so the frontend
+	// receives a fully usable shell context together with the first access token.
 	result, err := h.authService.Login(
 		r.Context(),
 		req.Username,
@@ -149,6 +161,8 @@ func (h authHandler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Refresh re-evaluates the selected scope to keep tokens and current tenancy
+	// context aligned after session rotation.
 	result, err := h.authService.Refresh(
 		r.Context(),
 		req.RefreshToken,
@@ -253,6 +267,8 @@ func (h authHandler) withAuthentication(next http.Handler) http.Handler {
 			return
 		}
 
+		// Authentication validates the bearer token and resolves the caller's
+		// effective tenant/project/environment selection in one step.
 		principal, err := h.authService.Authenticate(r.Context(), token, selectionFromHeaders(r.Header))
 		if err != nil {
 			writeMappedError(w, r, err)
@@ -272,6 +288,8 @@ func (h authHandler) withPermissions(next http.Handler, permissions ...tenancy.P
 		}
 
 		for _, permission := range permissions {
+			// Permission checks are evaluated against the already resolved scope so
+			// handlers never need to re-implement RBAC branching.
 			if !principal.Context.HasPermission(permission) {
 				writeMappedError(w, r, tenancy.ErrPermissionDenied)
 				return
@@ -301,6 +319,7 @@ func sessionMetadataFromRequest(r *http.Request) identity.SessionMetadata {
 		clientIP = host
 	}
 
+	// Persist the transport metadata used for session management and audit views.
 	return identity.SessionMetadata{
 		ClientIP:  clientIP,
 		UserAgent: r.UserAgent(),
@@ -344,6 +363,8 @@ func writeMappedError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, identity.ErrUnauthorized), errors.Is(err, identity.ErrUserDisabled), errors.Is(err, identity.ErrUserLocked):
 		writeError(w, r, http.StatusUnauthorized, "AUTH_UNAUTHORIZED", "authentication required", nil)
 	default:
+		// Unmapped failures are intentionally flattened to a generic internal error
+		// so auth internals are not leaked to the caller.
 		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "internal error", nil)
 	}
 }

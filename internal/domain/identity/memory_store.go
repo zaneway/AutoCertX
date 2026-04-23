@@ -51,6 +51,8 @@ func NewMemoryStore(seed SeedData) *MemoryStore {
 		}
 	}
 
+	// Seed data is expanded into lookup indexes once so auth flows can resolve
+	// users, credentials, and sessions without recomputing keys.
 	return store
 }
 
@@ -87,6 +89,8 @@ func (s *MemoryStore) Update(_ context.Context, user User) error {
 	}
 
 	s.users[user.ID] = user
+	// Username lookup is maintained on every update so later login attempts still
+	// resolve case-insensitively against the latest username.
 	s.usernames[strings.ToLower(user.Username)] = user.ID
 	return nil
 }
@@ -112,6 +116,8 @@ func (s *MemoryStore) SaveSession(_ context.Context, session Session) error {
 	}
 
 	s.sessions[session.ID] = session
+	// Refresh-token lookup is stored separately so refresh flow can resolve a
+	// session without scanning all sessions.
 	s.sessionByRefresh[session.RefreshTokenHash] = session.ID
 	return nil
 }
@@ -157,6 +163,8 @@ func (s *MemoryStore) UpdateSession(_ context.Context, session Session) error {
 	if current.RefreshTokenHash != "" && current.RefreshTokenHash != session.RefreshTokenHash {
 		delete(s.sessionByRefresh, current.RefreshTokenHash)
 	}
+	// Refresh token rotation replaces the reverse lookup entry in step with the
+	// updated session snapshot.
 	s.sessions[session.ID] = session
 	s.sessionByRefresh[session.RefreshTokenHash] = session.ID
 	return nil

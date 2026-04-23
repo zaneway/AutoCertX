@@ -14,6 +14,8 @@ func AccessLog(logger *slog.Logger) Middleware {
 			start := time.Now()
 			next.ServeHTTP(recorder, r)
 
+			// Logging after the downstream handler finishes ensures the final status
+			// code and full request latency are emitted together.
 			logger.Info("http request",
 				"method", r.Method,
 				"path", r.URL.Path,
@@ -24,6 +26,7 @@ func AccessLog(logger *slog.Logger) Middleware {
 	}
 }
 
+// statusRecorder preserves the final response code for middleware logging.
 type statusRecorder struct {
 	http.ResponseWriter
 	statusCode int

@@ -10,6 +10,7 @@ import (
 	"github.com/zaneway/AutoCertX/internal/platform/config"
 )
 
+// healthResponse is the generic runtime liveness/readiness payload.
 type healthResponse struct {
 	Service     string `json:"service"`
 	Environment string `json:"environment"`
@@ -28,6 +29,8 @@ func NewHandler(cfg config.Config, info buildinfo.Info, logger *slog.Logger) htt
 			return
 		}
 
+		// Root, healthz and readyz intentionally share the same lightweight payload
+		// because this runtime package only exposes process liveness metadata.
 		writeHealth(w, cfg, info)
 	})
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -66,6 +69,8 @@ func accessLog(logger *slog.Logger, next http.Handler) http.Handler {
 		start := time.Now()
 		next.ServeHTTP(recorder, r)
 
+		// Status capture happens after the handler returns so panics/recoveries and
+		// short writes are all reflected in the final access log line.
 		logger.Info("http request",
 			"method", r.Method,
 			"path", r.URL.Path,
@@ -75,6 +80,7 @@ func accessLog(logger *slog.Logger, next http.Handler) http.Handler {
 	})
 }
 
+// statusRecorder preserves the final status code for access logging.
 type statusRecorder struct {
 	http.ResponseWriter
 	statusCode int

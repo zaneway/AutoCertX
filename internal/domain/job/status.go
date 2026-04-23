@@ -17,6 +17,7 @@ const (
 func (s Status) IsTerminal() bool {
 	switch s {
 	case StatusSucceeded, StatusFailed, StatusCancelled, StatusTimedOut:
+		// Terminal jobs will never be claimed again by the scheduler.
 		return true
 	default:
 		return false
@@ -24,6 +25,7 @@ func (s Status) IsTerminal() bool {
 }
 
 func (s Status) CanClaim() bool {
+	// Only pending or retried jobs are eligible for worker claims.
 	return s == StatusPending || s == StatusRetry
 }
 
@@ -37,6 +39,7 @@ func (s Status) CanCancel() bool {
 }
 
 func (s Status) IsLeased() bool {
+	// Claimed and running are the only states that should carry a live worker lease.
 	return s == StatusClaimed || s == StatusRunning
 }
 
@@ -55,6 +58,7 @@ const (
 func (s AttemptStatus) IsTerminal() bool {
 	switch s {
 	case AttemptStatusSucceeded, AttemptStatusFailed, AttemptStatusTimedOut, AttemptStatusAbandoned:
+		// Terminal attempts are immutable historical records.
 		return true
 	default:
 		return false

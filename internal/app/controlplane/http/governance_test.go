@@ -11,6 +11,7 @@ import (
 
 	caaccountscmd "github.com/zaneway/AutoCertX/internal/application/command/caaccounts"
 	domainscmd "github.com/zaneway/AutoCertX/internal/application/command/domains"
+	domainsquery "github.com/zaneway/AutoCertX/internal/application/query/domains"
 	"github.com/zaneway/AutoCertX/internal/domain/dnscredentials"
 	"github.com/zaneway/AutoCertX/internal/domain/domains"
 	"github.com/zaneway/AutoCertX/internal/domain/issuer"
@@ -114,8 +115,16 @@ func newGovernanceRouter(t *testing.T) http.Handler {
 	t.Helper()
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	domainService := domains.NewService()
+	dnsService := dnscredentials.NewService()
+	issuerService := issuer.NewService()
 	domainCommands := domainscmd.NewService(domains.NewService(), dnscredentials.NewService(), domainscmd.NopAuditRecorder{})
-	caAccountCommands := caaccountscmd.NewService(issuer.NewService())
+	caAccountCommands := caaccountscmd.NewService(issuerService)
+	governanceQuery, err := domainsquery.NewService(domainService, dnsService, issuerService)
+	if err != nil {
+		t.Fatalf("domainsquery.NewService() error = %v", err)
+	}
+	domainCommands = domainscmd.NewService(domainService, dnsService, domainscmd.NopAuditRecorder{})
 
 	return NewRouter(Deps{
 		Config: config.Config{
@@ -131,6 +140,7 @@ func newGovernanceRouter(t *testing.T) http.Handler {
 		Logger:            logger,
 		DomainCommands:    domainCommands,
 		CAAccountCommands: caAccountCommands,
+		GovernanceQuery:   governanceQuery,
 	})
 }
 

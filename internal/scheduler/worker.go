@@ -73,6 +73,8 @@ func (w Worker) RunOnce(ctx context.Context) (int, error) {
 		return 0, err
 	}
 
+	// Claimed jobs are executed independently so one failure does not prevent the
+	// worker from acknowledging other work acquired in the same poll.
 	processed := 0
 	var errs []error
 	for _, claim := range claims {
@@ -87,6 +89,8 @@ func (w Worker) RunOnce(ctx context.Context) (int, error) {
 }
 
 func (w Worker) executeClaim(ctx context.Context, claim jobcommand.ClaimedJob) error {
+	// Mark the job as running only when execution is actually about to start so
+	// the persisted state reflects real worker progress.
 	if _, err := w.Service.MarkRunning(ctx, jobcommand.MarkRunningParams{
 		JobID:    claim.Job.ID,
 		WorkerID: w.WorkerID,
@@ -101,6 +105,8 @@ func (w Worker) executeClaim(ctx context.Context, claim jobcommand.ClaimedJob) e
 	renewErr := make(chan error, 1)
 	stopped := make(chan struct{})
 	if w.RenewInterval > 0 {
+		// Long-running executions renew the lease in the background to avoid being
+		// reaped while healthy work is still in progress.
 		go w.renewLoop(execCtx, claim.Job.ID, renewErr, stopped)
 	} else {
 		close(stopped)
@@ -110,6 +116,8 @@ func (w Worker) executeClaim(ctx context.Context, claim jobcommand.ClaimedJob) e
 	cancel()
 	<-stopped
 
+	// Lease-renewal failures take precedence because the worker may have lost
+	// ownership of the job before trying to complete it.
 	select {
 	case err := <-renewErr:
 		if err != nil {
@@ -143,6 +151,8 @@ func (w Worker) renewLoop(ctx context.Context, jobID string, renewErr chan<- err
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			// Heartbeats extend the worker lease and update attempt liveness for
+			// reaper safety and operational visibility.
 			if _, err := w.Service.Heartbeat(ctx, jobcommand.HeartbeatParams{
 				JobID:    jobID,
 				WorkerID: w.WorkerID,

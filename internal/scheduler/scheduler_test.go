@@ -200,6 +200,7 @@ func TestPlannerAndReaperRunOnce(t *testing.T) {
 	}
 }
 
+// staticExecutor returns a fixed execution result for deterministic scheduler tests.
 type staticExecutor struct {
 	result ExecutionResult
 }
@@ -208,6 +209,7 @@ func (e staticExecutor) Execute(context.Context, jobcommand.ClaimedJob) Executio
 	return e.result
 }
 
+// sleepingExecutor keeps the job running long enough to exercise lease renewal paths.
 type sleepingExecutor struct {
 	sleep time.Duration
 }

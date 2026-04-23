@@ -9,6 +9,7 @@ import (
 
 const globalPrefix = "AUTOCERTX"
 
+// HTTPConfig controls listener address and timeout budgets.
 type HTTPConfig struct {
 	Addr              string
 	ReadTimeout       time.Duration
@@ -18,17 +19,20 @@ type HTTPConfig struct {
 	ShutdownTimeout   time.Duration
 }
 
+// StorageConfig carries durable dependency connection strings.
 type StorageConfig struct {
 	PostgresURL string
 	RedisURL    string
 }
 
+// AuthConfig controls token issuance secrets and TTLs.
 type AuthConfig struct {
 	SigningKey      string
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
 }
 
+// Config is the aggregated runtime configuration snapshot.
 type Config struct {
 	ServiceName string
 	Environment string
@@ -38,6 +42,7 @@ type Config struct {
 	Auth        AuthConfig
 }
 
+// LoadOptions define how environment variables are resolved for one process.
 type LoadOptions struct {
 	ServiceName     string
 	EnvPrefix       string
@@ -46,6 +51,8 @@ type LoadOptions struct {
 
 func Load(opts LoadOptions) (Config, error) {
 	prefix := normalizePrefix(opts.EnvPrefix)
+	// Process-local prefixes override the shared AUTOCERTX_* defaults so one
+	// repository can host multiple binaries without config collisions.
 	cfg := Config{
 		ServiceName: opts.ServiceName,
 		Environment: lookupString(prefix, "ENV", "local"),
@@ -69,6 +76,8 @@ func Load(opts LoadOptions) (Config, error) {
 		},
 	}
 
+	// Validate the computed snapshot after all defaults and env overrides have
+	// been applied so startup fails fast with actionable configuration errors.
 	if cfg.ServiceName == "" {
 		return Config{}, fmt.Errorf("service name required")
 	}

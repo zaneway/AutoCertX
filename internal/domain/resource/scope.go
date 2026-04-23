@@ -11,6 +11,8 @@ type Scope struct {
 
 // Validate ensures the scope is complete.
 func (s Scope) Validate() error {
+	// Scope completeness is required because the current GA model treats tenant,
+	// project, and environment as a single inseparable access boundary.
 	if s.TenantID == "" {
 		return fmt.Errorf("tenant_id required: %w", ErrValidation)
 	}
@@ -32,5 +34,7 @@ func (s Scope) Equals(other Scope) bool {
 
 // EnvironmentKey provides a stable key for environment-level uniqueness checks.
 func (s Scope) EnvironmentKey() string {
+	// EnvironmentKey is reused as the in-memory uniqueness namespace for
+	// environment-scoped aggregates such as domains, webhooks, and credentials.
 	return s.TenantID + "/" + s.ProjectID + "/" + s.EnvironmentID
 }

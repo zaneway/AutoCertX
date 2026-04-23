@@ -7,6 +7,7 @@ var (
 	BuildTime = "unknown"
 )
 
+// Info is the runtime-visible build metadata snapshot.
 type Info struct {
 	Service   string `json:"service"`
 	Version   string `json:"version"`
@@ -14,6 +15,7 @@ type Info struct {
 	BuildTime string `json:"buildTime"`
 }
 
+// Current materializes the build metadata snapshot for HTTP/status surfaces.
 func Current(service string) Info {
 	return Info{
 		Service:   service,

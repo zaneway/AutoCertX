@@ -50,6 +50,8 @@ func NewMemoryStore(seed SeedData) *MemoryStore {
 		store.bindingsByUser[binding.UserID] = append(store.bindingsByUser[binding.UserID], binding)
 	}
 
+	// Seed records are split into entity maps and per-user binding lists so the
+	// resolver can expand scopes without repeated whole-store scans.
 	return store
 }
 
@@ -68,6 +70,8 @@ func (s *MemoryStore) ListRolesByIDs(_ context.Context, roleIDs []string) ([]Rol
 	result := make([]Role, 0, len(roleIDs))
 	seen := make(map[string]struct{}, len(roleIDs))
 	for _, roleID := range roleIDs {
+		// Deduplicate ids so a user with multiple bindings to the same role does
+		// not see duplicated role definitions in the resolver input.
 		if _, ok := seen[roleID]; ok {
 			continue
 		}
@@ -99,6 +103,8 @@ func (s *MemoryStore) ListProjectsByTenant(_ context.Context, tenantID string) (
 
 	result := make([]Project, 0)
 	for _, project := range s.projects {
+		// Projects are filtered lazily at read time because the in-memory store is
+		// optimized for deterministic tests rather than secondary indexes.
 		if project.TenantID == tenantID {
 			result = append(result, project)
 		}
@@ -124,6 +130,7 @@ func (s *MemoryStore) ListEnvironmentsByProject(_ context.Context, projectID str
 
 	result := make([]Environment, 0)
 	for _, environment := range s.environments {
+		// Environments are filtered lazily for the same reason as projects above.
 		if environment.ProjectID == projectID {
 			result = append(result, environment)
 		}

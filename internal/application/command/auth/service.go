@@ -63,6 +63,8 @@ func (s *Service) Login(
 		return Result{}, err
 	}
 
+	// Authentication is split into identity validation followed by tenancy
+	// resolution so the returned principal always contains an effective scope.
 	principal, err := s.principalFromAuth(ctx, result.AuthenticatedUser, selection)
 	if err != nil {
 		return Result{}, err
@@ -88,6 +90,8 @@ func (s *Service) Refresh(
 		return Result{}, err
 	}
 
+	// Refresh re-runs tenancy resolution because the client may request a
+	// different accessible scope while rotating tokens.
 	principal, err := s.principalFromAuth(ctx, result.AuthenticatedUser, selection)
 	if err != nil {
 		return Result{}, err

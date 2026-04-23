@@ -28,6 +28,8 @@ func (p Planner) RunOnce(ctx context.Context) (int, error) {
 
 	created := 0
 	for _, result := range results {
+		// Count only fresh inserts so planner metrics can distinguish new work from
+		// idempotent replays of already-created slots.
 		if result.Created {
 			created++
 		}

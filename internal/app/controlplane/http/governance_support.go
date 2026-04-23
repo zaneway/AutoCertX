@@ -22,16 +22,19 @@ var defaultGovernanceScope = resource.Scope{
 
 const defaultGovernanceActorID = "44444444-4444-4444-8444-444444444444"
 
+// objectEnvelope wraps single-resource payloads with request metadata.
 type objectEnvelope struct {
 	RequestID string `json:"request_id"`
 	Data      any    `json:"data"`
 }
 
+// listEnvelope wraps list payloads with request metadata.
 type listEnvelope struct {
 	RequestID string `json:"request_id"`
 	Items     any    `json:"items"`
 }
 
+// acceptedEnvelope reports accepted async command submission.
 type acceptedEnvelope struct {
 	RequestID string `json:"request_id"`
 	Status    string `json:"status"`
@@ -39,6 +42,8 @@ type acceptedEnvelope struct {
 }
 
 func resolveGovernanceScope(r *http.Request) (resource.Scope, string, error) {
+	// Governance APIs still accept explicit scope headers because the T04/T06
+	// implementation supports local/dev workflows before full auth coupling.
 	scope := resource.Scope{
 		TenantID:      headerOrDefault(r, headerTenantID, defaultGovernanceScope.TenantID),
 		ProjectID:     headerOrDefault(r, headerProjectID, defaultGovernanceScope.ProjectID),
@@ -60,6 +65,20 @@ func resolveGovernanceScope(r *http.Request) (resource.Scope, string, error) {
 	}
 
 	return scope, actorID, nil
+}
+
+func resolveReadScope(r *http.Request) (resource.Scope, string, error) {
+	if principal, ok := principalFromRequest(r); ok {
+		// Protected query endpoints should use the authenticated tenancy context so
+		// read isolation follows the same scope resolution as the rest of the shell.
+		return resource.Scope{
+			TenantID:      principal.Context.Tenant.ID,
+			ProjectID:     principal.Context.Project.ID,
+			EnvironmentID: principal.Context.Environment.ID,
+		}, principal.User.ID, nil
+	}
+
+	return resolveGovernanceScope(r)
 }
 
 func validateGovernanceID(value string) error {
@@ -124,6 +143,7 @@ func normalizeListItems(items any) any {
 
 	value := reflect.ValueOf(items)
 	if value.Kind() == reflect.Slice && value.IsNil() {
+		// Force nil slices to render as [] so the frontend contract stays stable.
 		return reflect.MakeSlice(value.Type(), 0, 0).Interface()
 	}
 

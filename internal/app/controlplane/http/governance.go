@@ -5,14 +5,19 @@ import (
 
 	caaccountscmd "github.com/zaneway/AutoCertX/internal/application/command/caaccounts"
 	domainscmd "github.com/zaneway/AutoCertX/internal/application/command/domains"
+	domainsquery "github.com/zaneway/AutoCertX/internal/application/query/domains"
 	"github.com/zaneway/AutoCertX/internal/domain/issuer"
+	"github.com/zaneway/AutoCertX/internal/domain/tenancy"
 )
 
+// governanceHandler serves domain, DNS credential, and CA account APIs.
 type governanceHandler struct {
 	domains    *domainscmd.Service
 	caAccounts *caaccountscmd.Service
+	query      *domainsquery.Service
 }
 
+// domainUpsertRequest is the control-plane write payload for domain assets.
 type domainUpsertRequest struct {
 	Name            string `json:"name"`
 	ChallengeType   string `json:"challenge_type"`
@@ -20,10 +25,12 @@ type domainUpsertRequest struct {
 	DNSCredentialID string `json:"dns_credential_id"`
 }
 
+// domainDNSBindingRequest requests an asynchronous DNS credential binding.
 type domainDNSBindingRequest struct {
 	DNSCredentialID string `json:"dns_credential_id"`
 }
 
+// dnsCredentialUpsertRequest is the HTTP write model for DNS credentials.
 type dnsCredentialUpsertRequest struct {
 	DisplayName  string `json:"display_name"`
 	ProviderType string `json:"provider_type"`
@@ -32,6 +39,7 @@ type dnsCredentialUpsertRequest struct {
 	ScopeMode    string `json:"scope_mode"`
 }
 
+// caAccountUpsertRequest is the HTTP write model for CA accounts.
 type caAccountUpsertRequest struct {
 	DisplayName  string `json:"display_name"`
 	DirectoryURL string `json:"directory_url"`
@@ -39,43 +47,65 @@ type caAccountUpsertRequest struct {
 }
 
 func registerGovernanceRoutes(mux *http.ServeMux, deps Deps) {
-	if deps.DomainCommands == nil || deps.CAAccountCommands == nil {
+	if deps.DomainCommands == nil && deps.CAAccountCommands == nil && deps.GovernanceQuery == nil {
 		return
 	}
 
 	handler := governanceHandler{
 		domains:    deps.DomainCommands,
 		caAccounts: deps.CAAccountCommands,
+		query:      deps.GovernanceQuery,
 	}
 
-	mux.HandleFunc("GET /api/v1/domains", handler.listDomains)
-	mux.HandleFunc("POST /api/v1/domains", handler.createDomain)
-	mux.HandleFunc("GET /api/v1/domains/{id}", handler.getDomain)
-	mux.HandleFunc("PUT /api/v1/domains/{id}", handler.updateDomain)
-	mux.HandleFunc("POST /api/v1/domains/{id}/bind-dns-credential", handler.bindDomainDNSCredential)
-	mux.HandleFunc("GET /api/v1/domains/{id}/validation-records", handler.listDomainValidationRecords)
-	mux.HandleFunc("GET /api/v1/domains/{id}/txt-operations", handler.listDomainTXTOperations)
-	mux.HandleFunc("GET /api/v1/domains/{id}/certificate-assets", handler.listDomainCertificateAssets)
+	handleRead := func(pattern string, fn http.HandlerFunc) {
+		var endpoint http.Handler = fn
+		if deps.AuthService != nil && deps.AuthContextQuery != nil {
+			authz := authHandler{
+				authService:        deps.AuthService,
+				authContextService: deps.AuthContextQuery,
+			}
+			// Query routes are protected in the full control-plane wiring but can
+			// still run without auth in focused handler tests.
+			endpoint = authz.withAuthentication(authz.withPermissions(endpoint, tenancy.PermissionAuthContextRead))
+		}
+		mux.Handle(pattern, endpoint)
+	}
 
-	mux.HandleFunc("GET /api/v1/dns-credentials", handler.listDNSCredentials)
-	mux.HandleFunc("POST /api/v1/dns-credentials", handler.createDNSCredential)
-	mux.HandleFunc("PUT /api/v1/dns-credentials/{id}", handler.updateDNSCredential)
-	mux.HandleFunc("POST /api/v1/dns-credentials/{id}/rotate", handler.rotateDNSCredential)
+	if deps.GovernanceQuery != nil {
+		handleRead("GET /api/v1/domains", handler.listDomains)
+		handleRead("GET /api/v1/domains/{id}", handler.getDomain)
+		handleRead("GET /api/v1/domains/{id}/validation-records", handler.listDomainValidationRecords)
+		handleRead("GET /api/v1/domains/{id}/txt-operations", handler.listDomainTXTOperations)
+		handleRead("GET /api/v1/domains/{id}/certificate-assets", handler.listDomainCertificateAssets)
+		handleRead("GET /api/v1/dns-credentials", handler.listDNSCredentials)
+		handleRead("GET /api/v1/ca-accounts", handler.listCAAccounts)
+		handleRead("GET /api/v1/ca-accounts/{id}", handler.getCAAccount)
+		handleRead("GET /api/v1/ca-accounts/{id}/capabilities", handler.getCAAccountCapabilities)
+	}
 
-	mux.HandleFunc("GET /api/v1/ca-accounts", handler.listCAAccounts)
-	mux.HandleFunc("POST /api/v1/ca-accounts", handler.createCAAccount)
-	mux.HandleFunc("GET /api/v1/ca-accounts/{id}", handler.getCAAccount)
-	mux.HandleFunc("GET /api/v1/ca-accounts/{id}/capabilities", handler.getCAAccountCapabilities)
+	if deps.DomainCommands != nil {
+		mux.HandleFunc("POST /api/v1/domains", handler.createDomain)
+		mux.HandleFunc("PUT /api/v1/domains/{id}", handler.updateDomain)
+		mux.HandleFunc("POST /api/v1/domains/{id}/bind-dns-credential", handler.bindDomainDNSCredential)
+
+		mux.HandleFunc("POST /api/v1/dns-credentials", handler.createDNSCredential)
+		mux.HandleFunc("PUT /api/v1/dns-credentials/{id}", handler.updateDNSCredential)
+		mux.HandleFunc("POST /api/v1/dns-credentials/{id}/rotate", handler.rotateDNSCredential)
+	}
+
+	if deps.CAAccountCommands != nil {
+		mux.HandleFunc("POST /api/v1/ca-accounts", handler.createCAAccount)
+	}
 }
 
 func (h governanceHandler) listDomains(w http.ResponseWriter, r *http.Request) {
-	scope, _, err := resolveGovernanceScope(r)
+	scope, _, err := resolveReadScope(r)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
 	}
 
-	items, err := h.domains.ListDomains(r.Context(), scope)
+	items, err := h.query.ListDomains(r.Context(), scope)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -96,6 +126,8 @@ func (h governanceHandler) createDomain(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// The command layer validates both the domain payload and any referenced DNS
+	// credential so the stored governance record stays internally consistent.
 	asset, err := h.domains.CreateDomain(r.Context(), scope, actorID, domainscmd.DomainUpsertInput{
 		Name:            req.Name,
 		ChallengeType:   req.ChallengeType,
@@ -110,7 +142,7 @@ func (h governanceHandler) createDomain(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h governanceHandler) getDomain(w http.ResponseWriter, r *http.Request) {
-	scope, _, err := resolveGovernanceScope(r)
+	scope, _, err := resolveReadScope(r)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -121,7 +153,7 @@ func (h governanceHandler) getDomain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	asset, err := h.domains.GetDomain(r.Context(), scope, id)
+	asset, err := h.query.GetDomain(r.Context(), scope, id)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -147,6 +179,8 @@ func (h governanceHandler) updateDomain(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Domain updates reuse the same binding resolution path as create to enforce
+	// the same provider and scope invariants on every write.
 	asset, err := h.domains.UpdateDomain(r.Context(), scope, actorID, id, domainscmd.DomainUpsertInput{
 		Name:            req.Name,
 		ChallengeType:   req.ChallengeType,
@@ -178,6 +212,8 @@ func (h governanceHandler) bindDomainDNSCredential(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// DNS binding is modeled as an accepted async action because the downstream
+	// certificate workflow may outlive the request lifecycle.
 	result, err := h.domains.BindDNSCredential(r.Context(), scope, actorID, id, req.DNSCredentialID)
 	if err != nil {
 		writeGovernanceError(w, r, err)
@@ -187,7 +223,7 @@ func (h governanceHandler) bindDomainDNSCredential(w http.ResponseWriter, r *htt
 }
 
 func (h governanceHandler) listDomainValidationRecords(w http.ResponseWriter, r *http.Request) {
-	scope, _, err := resolveGovernanceScope(r)
+	scope, _, err := resolveReadScope(r)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -198,7 +234,7 @@ func (h governanceHandler) listDomainValidationRecords(w http.ResponseWriter, r 
 		return
 	}
 
-	items, err := h.domains.ListValidationRecords(r.Context(), scope, id)
+	items, err := h.query.ListValidationRecords(r.Context(), scope, id)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -207,7 +243,7 @@ func (h governanceHandler) listDomainValidationRecords(w http.ResponseWriter, r 
 }
 
 func (h governanceHandler) listDomainTXTOperations(w http.ResponseWriter, r *http.Request) {
-	scope, _, err := resolveGovernanceScope(r)
+	scope, _, err := resolveReadScope(r)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -218,7 +254,7 @@ func (h governanceHandler) listDomainTXTOperations(w http.ResponseWriter, r *htt
 		return
 	}
 
-	items, err := h.domains.ListTXTOperations(r.Context(), scope, id)
+	items, err := h.query.ListTXTOperations(r.Context(), scope, id)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -227,7 +263,7 @@ func (h governanceHandler) listDomainTXTOperations(w http.ResponseWriter, r *htt
 }
 
 func (h governanceHandler) listDomainCertificateAssets(w http.ResponseWriter, r *http.Request) {
-	scope, _, err := resolveGovernanceScope(r)
+	scope, _, err := resolveReadScope(r)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -238,7 +274,7 @@ func (h governanceHandler) listDomainCertificateAssets(w http.ResponseWriter, r 
 		return
 	}
 
-	items, err := h.domains.ListCertificateAssets(r.Context(), scope, id)
+	items, err := h.query.ListCertificateAssets(r.Context(), scope, id)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -247,13 +283,13 @@ func (h governanceHandler) listDomainCertificateAssets(w http.ResponseWriter, r 
 }
 
 func (h governanceHandler) listDNSCredentials(w http.ResponseWriter, r *http.Request) {
-	scope, _, err := resolveGovernanceScope(r)
+	scope, _, err := resolveReadScope(r)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
 	}
 
-	items, err := h.domains.ListDNSCredentials(r.Context(), scope)
+	items, err := h.query.ListDNSCredentials(r.Context(), scope)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -332,6 +368,8 @@ func (h governanceHandler) rotateDNSCredential(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Rotation also returns an accepted job handle because secret rollover is
+	// exposed as an auditable long-running operation in the control plane.
 	result, err := h.domains.RotateDNSCredential(r.Context(), scope, actorID, id)
 	if err != nil {
 		writeGovernanceError(w, r, err)
@@ -341,13 +379,13 @@ func (h governanceHandler) rotateDNSCredential(w http.ResponseWriter, r *http.Re
 }
 
 func (h governanceHandler) listCAAccounts(w http.ResponseWriter, r *http.Request) {
-	scope, _, err := resolveGovernanceScope(r)
+	scope, _, err := resolveReadScope(r)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
 	}
 
-	items, err := h.caAccounts.ListCAAccounts(r.Context(), scope)
+	items, err := h.query.ListCAAccounts(r.Context(), scope)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -381,7 +419,7 @@ func (h governanceHandler) createCAAccount(w http.ResponseWriter, r *http.Reques
 }
 
 func (h governanceHandler) getCAAccount(w http.ResponseWriter, r *http.Request) {
-	scope, _, err := resolveGovernanceScope(r)
+	scope, _, err := resolveReadScope(r)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -392,7 +430,7 @@ func (h governanceHandler) getCAAccount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	account, err := h.caAccounts.GetCAAccount(r.Context(), scope, id)
+	account, err := h.query.GetCAAccount(r.Context(), scope, id)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -401,7 +439,7 @@ func (h governanceHandler) getCAAccount(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h governanceHandler) getCAAccountCapabilities(w http.ResponseWriter, r *http.Request) {
-	scope, _, err := resolveGovernanceScope(r)
+	scope, _, err := resolveReadScope(r)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return
@@ -412,7 +450,7 @@ func (h governanceHandler) getCAAccountCapabilities(w http.ResponseWriter, r *ht
 		return
 	}
 
-	capabilities, err := h.caAccounts.GetCAAccountCapabilities(r.Context(), scope, id)
+	capabilities, err := h.query.GetCAAccountCapabilities(r.Context(), scope, id)
 	if err != nil {
 		writeGovernanceError(w, r, err)
 		return

@@ -72,6 +72,8 @@ func translateIssuerError(err error) error {
 	case errors.Is(err, resource.ErrValidation):
 		return apperr.Wrap(err, http.StatusBadRequest, "REQUEST_VALIDATION_FAILED", "request validation failed", validationDetail(err))
 	default:
+		// Domain errors are flattened here so HTTP handlers can remain transport-
+		// focused and free of issuer-specific branching.
 		return apperr.Wrap(err, http.StatusInternalServerError, "INTERNAL_ERROR", "internal error")
 	}
 }

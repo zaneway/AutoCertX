@@ -17,6 +17,7 @@ var (
 	ErrAccessTokenExpired = errors.New("access token expired")
 )
 
+// accessTokenHeader is the minimal JWT header emitted by the HMAC signer.
 type accessTokenHeader struct {
 	Algorithm string `json:"alg"`
 	Type      string `json:"typ"`
@@ -60,6 +61,8 @@ func (s *TokenSigner) IssueAccessToken(user User, session Session, ttl time.Dura
 		Expires:  now.Add(ttl).Unix(),
 	}
 
+	// The implementation writes a compact JWT manually so the token format stays
+	// explicit and dependency-free in the domain layer.
 	headerBytes, err := json.Marshal(accessTokenHeader{
 		Algorithm: "HS256",
 		Type:      "JWT",
@@ -87,6 +90,8 @@ func (s *TokenSigner) VerifyAccessToken(token string) (AccessTokenClaims, error)
 		return AccessTokenClaims{}, ErrInvalidAccessToken
 	}
 
+	// Verify the signature before decoding claims so malformed or tampered tokens
+	// are rejected without trusting the payload.
 	unsigned := parts[0] + "." + parts[1]
 	expected := signToken(unsigned, s.secret)
 	if !hmac.Equal([]byte(parts[2]), []byte(expected)) {

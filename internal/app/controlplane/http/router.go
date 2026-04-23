@@ -9,7 +9,13 @@ import (
 	authcommand "github.com/zaneway/AutoCertX/internal/application/command/auth"
 	caaccountscmd "github.com/zaneway/AutoCertX/internal/application/command/caaccounts"
 	domainscmd "github.com/zaneway/AutoCertX/internal/application/command/domains"
+	settingscmd "github.com/zaneway/AutoCertX/internal/application/command/settings"
+	auditquery "github.com/zaneway/AutoCertX/internal/application/query/audit"
 	authcontextquery "github.com/zaneway/AutoCertX/internal/application/query/authcontext"
+	dashboardquery "github.com/zaneway/AutoCertX/internal/application/query/dashboard"
+	domainsquery "github.com/zaneway/AutoCertX/internal/application/query/domains"
+	jobsquery "github.com/zaneway/AutoCertX/internal/application/query/jobs"
+	settingsquery "github.com/zaneway/AutoCertX/internal/application/query/settings"
 	"github.com/zaneway/AutoCertX/internal/platform/buildinfo"
 	"github.com/zaneway/AutoCertX/internal/platform/config"
 	"github.com/zaneway/AutoCertX/internal/platform/httpx"
@@ -24,8 +30,15 @@ type Deps struct {
 	AuthContextQuery  *authcontextquery.Service
 	DomainCommands    *domainscmd.Service
 	CAAccountCommands *caaccountscmd.Service
+	SettingsCommands  *settingscmd.Service
+	GovernanceQuery   *domainsquery.Service
+	SettingsQuery     *settingsquery.Service
+	JobsQuery         *jobsquery.Service
+	DashboardQuery    *dashboardquery.Service
+	AuditQuery        *auditquery.Service
 }
 
+// healthResponse is the control-plane health/readiness payload.
 type healthResponse struct {
 	Service     string `json:"service"`
 	Environment string `json:"environment"`
@@ -54,13 +67,19 @@ func NewRouter(deps Deps) http.Handler {
 		writeHealth(w, deps)
 	})
 	if deps.AuthService != nil && deps.AuthContextQuery != nil {
+		// Auth routes are only mounted when identity dependencies are wired so
+		// control-plane startup can degrade cleanly in focused tests.
 		registerAuthRoutes(mux, authHandler{
 			authService:        deps.AuthService,
 			authContextService: deps.AuthContextQuery,
 		})
 	}
 	registerGovernanceRoutes(mux, deps)
+	registerAuditSettingsRoutes(mux, deps)
+	registerRuntimeQueryRoutes(mux, deps)
 
+	// The middleware order guarantees every downstream log/error payload sees the
+	// request ID and recovery wraps the full handler tree.
 	return middleware.Chain(
 		mux,
 		middleware.RequestID(),

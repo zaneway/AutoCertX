@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "AutoCertX Control Plane and Agent API",
-    "version": "1.0.0-t02",
+    "version": "1.0.1-t03",
     "description": "Initial frozen API contract for GA phase one. Covers control plane REST APIs, agent REST protocol, and shared error semantics."
   },
   "servers": [
@@ -41,6 +41,32 @@
         "responses": {
           "200": {
             "description": "Login success",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthLoginResponse" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": ["auth"],
+        "operationId": "refreshToken",
+        "summary": "Refresh access token with refresh token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuthRefreshRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Refresh success",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/AuthLoginResponse" }
@@ -1028,6 +1054,36 @@
         }
       }
     },
+    "/api/v1/audit-events/export-csv": {
+      "post": {
+        "tags": ["audit"],
+        "operationId": "exportAuditEventsCSV",
+        "summary": "Export audit events as CSV",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuditExportRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Audit CSV export",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
     "/api/v1/dashboard/summary": {
       "get": {
         "tags": ["dashboard"],
@@ -1529,6 +1585,13 @@
           "context": { "$ref": "#/components/schemas/AuthContext" }
         }
       },
+      "AuthRefreshRequest": {
+        "type": "object",
+        "required": ["refresh_token"],
+        "properties": {
+          "refresh_token": { "type": "string" }
+        }
+      },
       "AuthMeResponse": {
         "type": "object",
         "required": ["request_id", "data"],
@@ -1679,6 +1742,17 @@
           "enforce_strong_password": { "type": "boolean" },
           "password_rotation_days": { "type": "integer", "minimum": 1 },
           "max_session_count": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "AuditExportRequest": {
+        "type": "object",
+        "properties": {
+          "actor_id": { "type": "string", "format": "uuid" },
+          "action": { "type": "string" },
+          "resource_type": { "type": "string" },
+          "resource_id": { "type": "string", "format": "uuid" },
+          "start_time": { "type": "string", "format": "date-time" },
+          "end_time": { "type": "string", "format": "date-time" }
         }
       },
       "AgentRegisterRequest": {

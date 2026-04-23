@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/zaneway/AutoCertX/internal/domain/job"
+	"github.com/zaneway/AutoCertX/internal/domain/resource"
 )
 
 // MemoryRepository provides an in-process reference implementation for T05 tests.
@@ -48,6 +49,8 @@ func (r *MemoryRepository) Create(_ context.Context, record job.Job) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	// The idempotency index enforces the same duplicate-submission semantics as
+	// the production repository used by the scheduler.
 	if existingID, exists := r.idempotency[record.IdempotencyKey]; exists {
 		if existingID != "" {
 			return job.ErrDuplicateJob
@@ -63,6 +66,8 @@ func (r *MemoryRepository) EnsurePlanned(_ context.Context, record job.Job) (Pla
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	// Planned jobs are keyed by slot-derived idempotency key so rerunning the
+	// planner in the same slot returns the existing record instead of a duplicate.
 	if existingID, exists := r.idempotency[record.IdempotencyKey]; exists {
 		existing := r.jobs[existingID]
 		return PlannedJob{Job: cloneJob(existing), Created: false}, nil
@@ -98,6 +103,8 @@ func (r *MemoryRepository) Claim(_ context.Context, params ClaimParams) ([]Claim
 			continue
 		}
 
+		// Claim updates the durable job state and appends the first attempt record
+		// atomically inside the repository lock.
 		r.jobs[id] = cloneJob(next)
 		r.attempts[id] = append(r.attempts[id], cloneAttempt(attempt))
 		results = append(results, ClaimedJob{
@@ -192,6 +199,8 @@ func (r *MemoryRepository) Complete(_ context.Context, params CompleteParams) (C
 
 	retryScheduled := false
 	if params.Retryable && nextJob.CanRetry() && nextJob.Status != job.StatusSucceeded {
+		// Retry scheduling mirrors production behavior: executor intent plus job
+		// retry budget determines whether the job re-enters the queue.
 		retried, retryErr := nextJob.ScheduleRetry(params.RetryDelay, params.Now)
 		if retryErr == nil {
 			nextJob = retried
@@ -265,6 +274,8 @@ func (r *MemoryRepository) ReapExpired(_ context.Context, params ReapParams) ([]
 		var nextAttempt job.Attempt
 		switch attemptStatus {
 		case job.AttemptStatusAbandoned:
+			// Jobs that never made it to running are marked abandoned to distinguish
+			// lease loss before execution from timeouts during execution.
 			nextAttempt, err = activeAttempt.MarkAbandoned(params.Now, job.Failure{
 				Code:    "lease_expired",
 				Message: "worker lost before execution started",
@@ -281,6 +292,8 @@ func (r *MemoryRepository) ReapExpired(_ context.Context, params ReapParams) ([]
 
 		retryScheduled := false
 		if expiredJob.CanRetry() {
+			// Reaped jobs use the shared retry policy so crash recovery and normal
+			// executor failures back off consistently.
 			retried, retryErr := expiredJob.ScheduleRetry(params.RetryPolicy.Delay(expiredJob.AttemptCount), params.Now)
 			if retryErr == nil {
 				expiredJob = retried
@@ -298,6 +311,32 @@ func (r *MemoryRepository) ReapExpired(_ context.Context, params ReapParams) ([]
 	}
 
 	return results, nil
+}
+
+// List returns the point-in-time scheduler facts visible under one environment scope.
+func (r *MemoryRepository) List(_ context.Context, scope resource.Scope) ([]job.Job, error) {
+	if err := scope.Validate(); err != nil {
+		return nil, err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	items := make([]job.Job, 0, len(r.jobs))
+	for _, record := range r.jobs {
+		if record.TenantID != scope.TenantID || record.ProjectID != scope.ProjectID || record.EnvironmentID != scope.EnvironmentID {
+			continue
+		}
+		items = append(items, cloneJob(record))
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if !items[i].CreatedAt.Equal(items[j].CreatedAt) {
+			return items[i].CreatedAt.Before(items[j].CreatedAt)
+		}
+		return items[i].ID < items[j].ID
+	})
+	return items, nil
 }
 
 func (r *MemoryRepository) Get(_ context.Context, jobID string) (job.Job, error) {

@@ -165,6 +165,8 @@ func (s *Service) Create(scope resource.Scope, input UpsertInput) (Account, erro
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// CA account display names are unique per environment so later issuance policy
+	// references remain human-readable and deterministic.
 	if existingID, exists := s.byEnvName[envKey]; exists {
 		return Account{}, fmt.Errorf("ca account display_name already exists under environment (%s): %w", existingID, resource.ErrConflict)
 	}
@@ -191,6 +193,8 @@ func validateInput(input UpsertInput) error {
 func buildCapabilities(directoryURL string) CapabilitySet {
 	environment := "production"
 	if strings.Contains(strings.ToLower(directoryURL), "staging") {
+		// The GA implementation infers environment from the ACME directory URL so
+		// the frontend can distinguish staging and production accounts immediately.
 		environment = "staging"
 	}
 

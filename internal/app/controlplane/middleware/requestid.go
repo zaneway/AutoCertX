@@ -12,6 +12,7 @@ const requestIDHeader = "X-Request-Id"
 
 var requestIDCounter atomic.Uint64
 
+// requestIDContextKey stores the generated request ID in context.
 type requestIDContextKey struct{}
 
 // RequestID attaches a stable request identifier to each response.
@@ -20,6 +21,8 @@ func RequestID() Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestID := r.Header.Get(requestIDHeader)
 			if requestID == "" {
+				// Fall back to a locally generated identifier so every request can be
+				// traced even when the caller does not provide one.
 				requestID = nextRequestID()
 			}
 

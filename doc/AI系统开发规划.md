@@ -22,8 +22,9 @@
 - 当前执行进度：
   - `Wave 0` 已完成
   - `Wave 1` 已完成
-  - `Wave 2` 进行中
-  - 其中 `T03`、`T04`、`T05` 已完成基线实现
+  - `Wave 2` 已完成
+  - `Wave 3` 进行中
+  - 其中 `T03`、`T04`、`T05`、`T06`、`T13` 已完成基线实现，`T07` 处于 Phase A 进行中
 
 ## 1. 文档目标
 
@@ -228,13 +229,13 @@ internal/
 - `Wave 1（已完成）`
   - `T01`
   - `T02`
-- `Wave 2（进行中）`
+- `Wave 2（已完成）`
   - `T03`
   - `T04`
   - `T05`
   - `T06`
   - `T13`
-- `Wave 3（待开始）`
+- `Wave 3（进行中）`
   - `T07`
   - `T08`
   - `T09`
@@ -320,13 +321,13 @@ flowchart LR
 | `T04` | 域名、DNS 凭据与 CA 账户治理         | `Wave 2` | 已完成 | 域名、DNS 凭据、CA 账户治理服务与 `/api/v1/domains`、`/api/v1/dns-credentials`、`/api/v1/ca-accounts` 基线已落地，`make ci-task-T04` 已通过 |
 | `T05` | Job、Lease 与 Scheduler      | `Wave 2` | 已完成 | `job` 域模型、planner/worker/reaper、PostgreSQL `SKIP LOCKED` 仓储、数据库级集成验证与 `make ci-task-T05` 已落地并通过 |
 | `T06` | 审计、证据、系统设置与 Webhook       | `Wave 2` | 已完成 | 审计域/设置域、`/api/v1/audit-events*` 与 `/api/v1/settings/*`、同步 CSV 导出产物、导出记录与 Webhook 状态跟踪、`make ci-task-T06` 基线已落地 |
-| `T07` | 聚合查询层与控制台读模型               | `Wave 3` | 未开始 | 等待执行 |
+| `T07` | 聚合查询层与控制台读模型               | `Wave 3` | 进行中 | Phase A 已落地 `dashboard/jobs/domains/settings` 四个 query 模块、控制面 GET 路由切换到 query service、`make test-integration-query` 与 `make ci-task-T07` 基线已补齐，`assets/delivery/discoveries` 与依赖真实资产/发现事实的查询延后到后续任务 |
 | `T08` | ACME、签发工作流与 Challenge 编排   | `Wave 3` | 未开始 | 等待执行 |
 | `T09` | Agent 管理、部署目标治理与协议         | `Wave 3` | 未开始 | 等待执行 |
 | `T10` | NGINX 部署与验证                | `Wave 4` | 未开始 | 等待执行 |
 | `T11` | Tomcat 部署与验证               | `Wave 4` | 未开始 | 等待执行 |
 | `T12` | 发现与认领                      | `Wave 4` | 未开始 | 等待执行 |
-| `T13` | Vue 壳层与共享前端能力              | `Wave 2` | 未开始 | 等待执行 |
+| `T13` | Vue 壳层与共享前端能力              | `Wave 2` | 已完成 | `Vite + Vue 3 + TypeScript` 正式工程入口、登录页、控制台壳层、路由守卫、`Pinia` 登录态、`vue-i18n` 双语、API client、query key、权限映射和 `PermissionGuard` 基线已落地，`make ci-task-T13` 已通过 |
 | `T14` | 前端治理页                      | `Wave 3` | 未开始 | 等待执行 |
 | `T15` | 前端运行页                      | `Wave 4` | 未开始 | 等待执行 |
 | `T16` | 集成、E2E、CI、发布               | `Wave 5` | 未开始 | 等待执行 |
@@ -567,6 +568,7 @@ flowchart LR
 
 ### T07 聚合查询层与控制台读模型
 
+- 执行状态：进行中（2026-04-22，Phase A）
 - 任务目标：
   - 建立面向页面的聚合查询 API
 - 前置依赖：`T03` `T04` `T05` `T06`
@@ -591,6 +593,35 @@ flowchart LR
   - `make ci-task-T07`
   - `go test ./internal/application/query/...`
   - `make test-integration-query`
+- 当前 Phase A 已完成：
+  - 新增 `internal/application/query/dashboard/`、`internal/application/query/domains/`、`internal/application/query/jobs/`、`internal/application/query/settings/`
+  - 控制面 GET 路由切换到 query service：
+    - `GET /api/v1/dashboard/summary`
+    - `GET /api/v1/dashboard/job-failures`
+    - `GET /api/v1/jobs`
+    - `GET /api/v1/jobs/{id}`
+    - `GET /api/v1/jobs/{id}/attempts`
+    - `GET /api/v1/domains`
+    - `GET /api/v1/domains/{id}`
+    - `GET /api/v1/domains/{id}/validation-records`
+    - `GET /api/v1/domains/{id}/txt-operations`
+    - `GET /api/v1/domains/{id}/certificate-assets`
+    - `GET /api/v1/dns-credentials`
+    - `GET /api/v1/ca-accounts`
+    - `GET /api/v1/ca-accounts/{id}`
+    - `GET /api/v1/ca-accounts/{id}/capabilities`
+    - `GET /api/v1/settings/webhooks`
+    - `GET /api/v1/settings/renewal-window`
+    - `GET /api/v1/settings/security`
+  - `query` 路径已补齐单测，控制面已补齐带鉴权的 `TestQuery*` 集成测试
+  - `jobs` read repository 已补齐按 scope 的事实列表读取，供 `jobs/dashboard` 查询复用
+- Phase A 明确延后：
+  - `internal/application/query/assets/` → `T08`
+  - `internal/application/query/delivery/` → `T09`
+  - `internal/application/query/discoveries/` → `T12`
+  - `GET /api/v1/dashboard/expiring-certificates` → 依赖真实 `certificate_assets`，放到 `T08`
+  - `GET /api/v1/dashboard/discovery-anomalies` → 依赖真实 `discoveries`，放到 `T12`
+  - `AssetDetail / AgentDetail / DiscoveryDetail` → 放到 `T08/T09/T12`
 
 ### T08 ACME、签发工作流与 Challenge 编排
 
@@ -715,6 +746,7 @@ flowchart LR
 
 ### T13 Vue 壳层、鉴权与国际化
 
+- 执行状态：已完成（2026-04-23）
 - 任务目标：
   - 搭建正式 Vue 3 前端工程骨架，承接 HTML 原型
 - 前置依赖：`T00`
@@ -727,6 +759,20 @@ flowchart LR
   - 登录鉴权
   - 语言切换 `zh-CN / en-US`
   - API client、query key、状态管理基线
+- 验证结果：
+  - 正式前端入口已落地为 `web/console/app.html`，避免覆盖原型 `web/console/index.html`
+  - `web/console/package.json`、`vite.config.ts`、`tsconfig*.json`、`src/app/`、`src/shared/` 已完成基线工程化组织
+  - `Vue Router` 路由树覆盖一期一级导航和详情/子页面占位路由
+  - `ConsoleLayout` 已包含左侧导航、顶栏、版本、当前时间、角色、租户/项目/环境上下文和语言切换
+  - 登录页已接入 `/api/v1/auth/login`，壳层上下文已接入 `/api/v1/auth/me`
+  - 语言偏好切换已接入 `/api/v1/auth/me/preferences`，未登录场景回退本地偏好
+  - `Pinia` 管理登录态、token、上下文与 locale，`@tanstack/vue-query` 和 query key 基线已建立
+  - 前端 RBAC 映射、路由级权限守卫和组件级 `PermissionGuard` 已落地
+  - `make ci-task-T13` 已通过，覆盖 `web-lint`、`web-test`、`web-build`
+- 实现说明：
+  - 现有 HTML 原型文件保持不动，继续作为页面设计输入
+  - 当前 T14/T15 对应业务页仅接入占位容器，真实查询、表格和动作组件在后续任务替换
+  - 左侧导航风险计数预留 `/api/v1/statistics/summary` 查询位，后端统计接口未就绪时前端降级为空计数
 - 验收要求：
   - 顶栏包含版本、时间、角色、上下文、语言切换
   - 路由守卫和登录跳转正确

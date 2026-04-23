@@ -91,6 +91,8 @@ func (s *Service) Login(ctx context.Context, username string, password string, m
 		return LoginResult{}, ErrInvalidCredentials
 	}
 
+	// Password material is only verified here; every later step works with
+	// derived session/token state instead of raw credentials.
 	ok, err := s.hasher.Verify(cred.PasswordHash, password)
 	if err != nil || !ok {
 		return LoginResult{}, ErrInvalidCredentials
@@ -106,6 +108,8 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, metadata Ses
 	if err != nil {
 		return LoginResult{}, ErrUnauthorized
 	}
+	// Refresh only applies to live sessions so revoked or expired refresh tokens
+	// cannot recreate access after logout or timeout.
 	if session.Status != SessionStatusActive || s.now().UTC().After(session.ExpiresAt) {
 		return LoginResult{}, ErrSessionExpired
 	}
@@ -135,6 +139,8 @@ func (s *Service) AuthenticateAccessToken(ctx context.Context, accessToken strin
 	if err != nil {
 		return AuthenticatedUser{}, ErrUnauthorized
 	}
+	// The access token is treated as a pointer to persisted session state so
+	// revocation takes effect immediately without waiting for token expiry.
 	if session.Status != SessionStatusActive || s.now().UTC().After(session.ExpiresAt) {
 		return AuthenticatedUser{}, ErrSessionExpired
 	}
@@ -158,6 +164,8 @@ func (s *Service) Logout(ctx context.Context, sessionID string) error {
 	}
 
 	now := s.now().UTC()
+	// Logout is modeled as session revocation so both access-token validation and
+	// refresh-token rotation stop working against the same session record.
 	session.Status = SessionStatusRevoked
 	session.RevokedAt = now
 	session.UpdatedAt = now
@@ -197,6 +205,8 @@ func (s *Service) issueSession(
 
 	session := existing
 	if session.ID == "" {
+		// A fresh login creates the durable session identity later reused by token
+		// verification and refresh rotation.
 		session = Session{
 			ID:        uuidx.New(),
 			TenantID:  user.TenantID,
@@ -213,6 +223,8 @@ func (s *Service) issueSession(
 	session.ExpiresAt = now.Add(s.refreshTTL)
 	session.UpdatedAt = now
 	if session.RevokedAt.After(time.Time{}) {
+		// Rotating a still-active session clears any stale revocation marker before
+		// the updated session snapshot is persisted.
 		session.RevokedAt = time.Time{}
 	}
 
@@ -221,6 +233,8 @@ func (s *Service) issueSession(
 			return LoginResult{}, fmt.Errorf("save session: %w", err)
 		}
 	} else {
+		// Refresh updates the same session row so device/session history stays
+		// stable while the refresh token hash changes.
 		if err := s.sessions.UpdateSession(ctx, session); err != nil {
 			return LoginResult{}, fmt.Errorf("update session: %w", err)
 		}
@@ -232,6 +246,8 @@ func (s *Service) issueSession(
 		return LoginResult{}, fmt.Errorf("update last login: %w", err)
 	}
 
+	// The access token is issued from the persisted session snapshot so claims and
+	// repository state describe the same session lifecycle.
 	accessToken, expiresIn, err := s.signer.IssueAccessToken(user, session, s.accessTTL)
 	if err != nil {
 		return LoginResult{}, fmt.Errorf("issue access token: %w", err)

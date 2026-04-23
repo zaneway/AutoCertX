@@ -38,6 +38,8 @@ func NewService(systemDefaultLocale string) *Service {
 func (s *Service) Build(user identity.User, context tenancy.ResolvedContext) View {
 	locale := user.Locale
 	if locale == "" {
+		// Locale falls back from user preference to tenant preference and finally to
+		// the system default so the shell always has a deterministic language.
 		locale = context.Tenant.Locale
 	}
 	if locale == "" {
