@@ -152,6 +152,121 @@ func TestContractsAgentProtocolUsesPostOnly(t *testing.T) {
 	}
 }
 
+func TestContractsLifecycleEnumsAreFrozen(t *testing.T) {
+	spec := loadJSONFile(t, "openapi.json")
+	schemas := nestedMap(t, nestedMap(t, spec, "components"), "schemas")
+
+	assertEnum(t, schemas, "ChallengeType", []string{"http-01", "dns-01"})
+	assertEnum(t, schemas, "CertificateType", []string{"single", "san", "wildcard"})
+	assertEnum(t, schemas, "CertificateRequestType", []string{"issue", "renew"})
+	assertEnum(t, schemas, "CertificateRequestStatus", []string{"draft", "submitted", "accepted", "running", "completed", "failed", "cancelled"})
+	assertEnum(t, schemas, "IssueWorkflowStatus", []string{
+		"created",
+		"order_pending",
+		"challenge_pending",
+		"challenge_processing",
+		"challenge_valid",
+		"finalizing",
+		"issued",
+		"deploy_pending",
+		"deploying",
+		"deployed",
+		"partially_failed",
+		"failed",
+		"cancelled",
+	})
+	assertEnum(t, schemas, "WorkflowChallengeStatus", []string{
+		"pending",
+		"presenting",
+		"presented",
+		"propagating",
+		"ready",
+		"verifying",
+		"valid",
+		"invalid",
+		"cleanup_pending",
+		"cleaned",
+		"cleanup_failed",
+	})
+	assertEnum(t, schemas, "CertificateAssetStatus", []string{"active", "expiring", "renewing", "deploy_failed", "expired", "revoked", "orphaned"})
+}
+
+func TestContractsAgentCapabilitiesAndJobTypesFreezeGAScope(t *testing.T) {
+	spec := loadJSONFile(t, "openapi.json")
+	schemas := nestedMap(t, nestedMap(t, spec, "components"), "schemas")
+
+	assertEnum(t, schemas, "DeploymentTargetType", []string{"nginx", "tomcat-jsse-pkcs12"})
+	assertEnum(t, schemas, "AgentCapabilityCode", []string{
+		"keygen:rsa",
+		"challenge:http-01",
+		"deploy:nginx",
+		"deploy:tomcat-jsse-pkcs12",
+		"verify:nginx",
+		"verify:tomcat",
+		"discover:nginx",
+		"discover:tomcat",
+	})
+	assertEnum(t, schemas, "AgentJobType", []string{
+		"present_http01_challenge",
+		"cleanup_http01_challenge",
+		"deploy_nginx_certificate",
+		"deploy_tomcat_certificate",
+		"verify_nginx_deployment",
+		"verify_tomcat_deployment",
+		"discover_nginx_certificates",
+		"discover_tomcat_certificates",
+	})
+	assertEnumContains(t, schemas, "PlatformJobType", []string{
+		"start_issue_workflow",
+		"continue_issue_workflow",
+		"renewal_scan",
+		"discovery_scan",
+		"present_http01_challenge",
+		"deploy_nginx_certificate",
+	})
+}
+
+func TestContractsAgentJobEnvelopeCarriesIdempotentExecutionFields(t *testing.T) {
+	spec := loadJSONFile(t, "openapi.json")
+	schemas := nestedMap(t, nestedMap(t, spec, "components"), "schemas")
+
+	agentJob := nestedMap(t, schemas, "AgentJob")
+	assertRequiredFields(t, agentJob, []string{"job_id", "job_type", "schema_version", "operation_id", "lease_expire_at", "payload"})
+	agentJobProperties := nestedMap(t, agentJob, "properties")
+	assertPropertyRef(t, agentJobProperties, "job_type", "#/components/schemas/AgentJobType")
+	assertPropertyRef(t, agentJobProperties, "payload", "#/components/schemas/AgentJobPayload")
+
+	payload := nestedMap(t, schemas, "AgentJobPayload")
+	assertRequiredFields(t, payload, []string{"schema_version", "operation_id"})
+	payloadProperties := nestedMap(t, payload, "properties")
+	assertPropertyRef(t, payloadProperties, "target_type", "#/components/schemas/DeploymentTargetType")
+	assertPropertyRef(t, payloadProperties, "challenge_type", "#/components/schemas/ChallengeType")
+
+	progress := nestedMap(t, schemas, "AgentJobProgressRequest")
+	assertRequiredFields(t, progress, []string{"operation_id", "status"})
+
+	complete := nestedMap(t, schemas, "AgentJobCompleteRequest")
+	assertRequiredFields(t, complete, []string{"operation_id", "result_status"})
+	completeProperties := nestedMap(t, complete, "properties")
+	for _, field := range []string{"failed_stage", "retryable", "compensation_required", "evidence"} {
+		if _, ok := completeProperties[field]; !ok {
+			t.Fatalf("AgentJobCompleteRequest missing field %q", field)
+		}
+	}
+}
+
+func TestContractsCertificateRequestsRequireIdempotency(t *testing.T) {
+	spec := loadJSONFile(t, "openapi.json")
+	schemas := nestedMap(t, nestedMap(t, spec, "components"), "schemas")
+
+	request := nestedMap(t, schemas, "CertificateRequestCreateRequest")
+	assertRequiredFields(t, request, []string{"domain_ids", "ca_account_id", "certificate_type", "challenge_type", "idempotency_key"})
+	properties := nestedMap(t, request, "properties")
+	assertPropertyRef(t, properties, "certificate_type", "#/components/schemas/CertificateType")
+	assertPropertyRef(t, properties, "challenge_type", "#/components/schemas/ChallengeType")
+	assertPropertyRef(t, properties, "request_type", "#/components/schemas/CertificateRequestType")
+}
+
 // errorCatalog mirrors the published OpenAPI error catalogue file.
 type errorCatalog struct {
 	Version string           `json:"version"`
@@ -212,6 +327,77 @@ func nestedMap(t *testing.T, parent map[string]any, key string) map[string]any {
 	}
 
 	return typed
+}
+
+func assertEnum(t *testing.T, schemas map[string]any, schemaName string, expected []string) {
+	t.Helper()
+
+	schema := nestedMap(t, schemas, schemaName)
+	actual := stringArray(t, schema, "enum")
+	if len(actual) != len(expected) {
+		t.Fatalf("%s enum length = %d, want %d: %v", schemaName, len(actual), len(expected), actual)
+	}
+	assertStringSetContains(t, schemaName, actual, expected)
+}
+
+func assertEnumContains(t *testing.T, schemas map[string]any, schemaName string, expected []string) {
+	t.Helper()
+
+	schema := nestedMap(t, schemas, schemaName)
+	actual := stringArray(t, schema, "enum")
+	assertStringSetContains(t, schemaName, actual, expected)
+}
+
+func assertRequiredFields(t *testing.T, schema map[string]any, expected []string) {
+	t.Helper()
+
+	actual := stringArray(t, schema, "required")
+	assertStringSetContains(t, "required", actual, expected)
+}
+
+func assertPropertyRef(t *testing.T, properties map[string]any, field string, expectedRef string) {
+	t.Helper()
+
+	property := nestedMap(t, properties, field)
+	if property["$ref"] != expectedRef {
+		t.Fatalf("property %q $ref = %v, want %q", field, property["$ref"], expectedRef)
+	}
+}
+
+func assertStringSetContains(t *testing.T, label string, actual []string, expected []string) {
+	t.Helper()
+
+	seen := make(map[string]struct{}, len(actual))
+	for _, value := range actual {
+		seen[value] = struct{}{}
+	}
+	for _, value := range expected {
+		if _, ok := seen[value]; !ok {
+			t.Fatalf("%s missing value %q in %v", label, value, actual)
+		}
+	}
+}
+
+func stringArray(t *testing.T, parent map[string]any, key string) []string {
+	t.Helper()
+
+	value, ok := parent[key]
+	if !ok {
+		t.Fatalf("missing key %q", key)
+	}
+	values, ok := value.([]any)
+	if !ok {
+		t.Fatalf("key %q is not an array", key)
+	}
+	result := make([]string, 0, len(values))
+	for _, item := range values {
+		typed, ok := item.(string)
+		if !ok {
+			t.Fatalf("key %q contains non-string value %v", key, item)
+		}
+		result = append(result, typed)
+	}
+	return result
 }
 
 func repoRoot(t *testing.T) string {

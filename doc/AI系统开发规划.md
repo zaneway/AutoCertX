@@ -24,7 +24,7 @@
   - `Wave 1` 已完成
   - `Wave 2` 已完成
   - `Wave 3` 进行中
-  - 其中 `T03`、`T04`、`T05`、`T06`、`T13` 已完成基线实现，`T07` 处于 Phase A 进行中
+  - 其中 `T03`、`T04`、`T05`、`T06`、`T13` 已完成基线实现，`T07` Phase A 已完成并通过门禁，`T08/T09` 处于契约冻结切片推进中
 
 ## 1. 文档目标
 
@@ -321,9 +321,9 @@ flowchart LR
 | `T04` | 域名、DNS 凭据与 CA 账户治理         | `Wave 2` | 已完成 | 域名、DNS 凭据、CA 账户治理服务与 `/api/v1/domains`、`/api/v1/dns-credentials`、`/api/v1/ca-accounts` 基线已落地，`make ci-task-T04` 已通过 |
 | `T05` | Job、Lease 与 Scheduler      | `Wave 2` | 已完成 | `job` 域模型、planner/worker/reaper、PostgreSQL `SKIP LOCKED` 仓储、数据库级集成验证与 `make ci-task-T05` 已落地并通过 |
 | `T06` | 审计、证据、系统设置与 Webhook       | `Wave 2` | 已完成 | 审计域/设置域、`/api/v1/audit-events*` 与 `/api/v1/settings/*`、同步 CSV 导出产物、导出记录与 Webhook 状态跟踪、`make ci-task-T06` 基线已落地 |
-| `T07` | 聚合查询层与控制台读模型               | `Wave 3` | 进行中 | Phase A 已落地 `dashboard/jobs/domains/settings` 四个 query 模块、控制面 GET 路由切换到 query service、`make test-integration-query` 与 `make ci-task-T07` 基线已补齐，`assets/delivery/discoveries` 与依赖真实资产/发现事实的查询延后到后续任务 |
-| `T08` | ACME、签发工作流与 Challenge 编排   | `Wave 3` | 未开始 | 等待执行 |
-| `T09` | Agent 管理、部署目标治理与协议         | `Wave 3` | 未开始 | 等待执行 |
+| `T07` | 聚合查询层与控制台读模型               | `Wave 3` | Phase A 已完成 | Phase A 已落地 `dashboard/jobs/domains/settings` 四个 query 模块、控制面 GET 路由切换到 query service、`make test-integration-query` 与 `make ci-task-T07` 基线已补齐，`assets/delivery/discoveries` 与依赖真实资产/发现事实的查询延后到后续任务 |
+| `T08` | ACME、签发工作流与 Challenge 编排   | `Wave 3` | 契约冻结中 | 已启动与 `T09` 共用的 OpenAPI 契约切片，冻结生命周期枚举、证书申请幂等键、内部/Agent job type 基线 |
+| `T09` | Agent 管理、部署目标治理与协议         | `Wave 3` | 契约冻结中 | 已启动与 `T08` 共用的 OpenAPI 契约切片，冻结 Agent 能力码、节点状态、Agent job envelope 与结果回传字段 |
 | `T10` | NGINX 部署与验证                | `Wave 4` | 未开始 | 等待执行 |
 | `T11` | Tomcat 部署与验证               | `Wave 4` | 未开始 | 等待执行 |
 | `T12` | 发现与认领                      | `Wave 4` | 未开始 | 等待执行 |
@@ -649,6 +649,11 @@ flowchart LR
   - `make ci-task-T08`
   - `go test ./internal/domain/certificaterequest/... ./internal/domain/certificateasset/... ./internal/domain/issueworkflow/... ./internal/workflow/...`
   - `make test-integration-acme`
+- 当前契约冻结切片：
+  - `ChallengeType`、`CertificateType`、`CertificateRequestType`、`CertificateRequestStatus` 已在 OpenAPI 组件中冻结
+  - `IssueWorkflowStatus` 与 `WorkflowChallengeStatus` 已按详细设计状态机冻结
+  - `CertificateRequestCreateRequest` 已要求 `idempotency_key`
+  - `PlatformJobType` 已包含 `start_issue_workflow`、`continue_issue_workflow`、`renewal_scan`、`discovery_scan` 与 Agent 下发类任务
 
 ### T09 AgentHub 与 Agent 协议
 
@@ -676,6 +681,12 @@ flowchart LR
   - `make ci-task-T09`
   - `go test ./internal/domain/agentnode/... ./internal/domain/deploymenttarget/... ./internal/agent/...`
   - `make test-integration-agenthub`
+- 当前契约冻结切片：
+  - `DeploymentTargetType` 已冻结为 `nginx`、`tomcat-jsse-pkcs12`
+  - `AgentNodeStatus` 已冻结为 `registering / online / degraded / offline / disabled / incompatible`
+  - `AgentCapabilityCode` 已冻结一期 GA 能力码：RSA 密钥、HTTP-01、NGINX/Tomcat 部署验证、NGINX/Tomcat 发现
+  - `AgentJobType` 已冻结 Agent 可执行任务类型，不包含 `DNS-01`，避免 DNS 凭据下沉到 Agent
+  - `AgentJob` 与回传请求已要求携带 `schema_version` 和 `operation_id`，支撑幂等执行、重复回传去重和排障关联
 
 ### T10 NGINX 部署与验证
 

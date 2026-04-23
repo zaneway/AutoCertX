@@ -1566,6 +1566,111 @@
           "status": { "type": "string" }
         }
       },
+      "ChallengeType": {
+        "type": "string",
+        "enum": ["http-01", "dns-01"]
+      },
+      "CertificateType": {
+        "type": "string",
+        "enum": ["single", "san", "wildcard"]
+      },
+      "CertificateRequestType": {
+        "type": "string",
+        "enum": ["issue", "renew"]
+      },
+      "CertificateRequestStatus": {
+        "type": "string",
+        "enum": ["draft", "submitted", "accepted", "running", "completed", "failed", "cancelled"]
+      },
+      "IssueWorkflowStatus": {
+        "type": "string",
+        "enum": [
+          "created",
+          "order_pending",
+          "challenge_pending",
+          "challenge_processing",
+          "challenge_valid",
+          "finalizing",
+          "issued",
+          "deploy_pending",
+          "deploying",
+          "deployed",
+          "partially_failed",
+          "failed",
+          "cancelled"
+        ]
+      },
+      "WorkflowChallengeStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "presenting",
+          "presented",
+          "propagating",
+          "ready",
+          "verifying",
+          "valid",
+          "invalid",
+          "cleanup_pending",
+          "cleaned",
+          "cleanup_failed"
+        ]
+      },
+      "CertificateAssetStatus": {
+        "type": "string",
+        "enum": ["active", "expiring", "renewing", "deploy_failed", "expired", "revoked", "orphaned"]
+      },
+      "DeploymentTargetType": {
+        "type": "string",
+        "enum": ["nginx", "tomcat-jsse-pkcs12"]
+      },
+      "AgentNodeStatus": {
+        "type": "string",
+        "enum": ["registering", "online", "degraded", "offline", "disabled", "incompatible"]
+      },
+      "AgentCapabilityCode": {
+        "type": "string",
+        "enum": [
+          "keygen:rsa",
+          "challenge:http-01",
+          "deploy:nginx",
+          "deploy:tomcat-jsse-pkcs12",
+          "verify:nginx",
+          "verify:tomcat",
+          "discover:nginx",
+          "discover:tomcat"
+        ]
+      },
+      "AgentJobType": {
+        "type": "string",
+        "enum": [
+          "present_http01_challenge",
+          "cleanup_http01_challenge",
+          "deploy_nginx_certificate",
+          "deploy_tomcat_certificate",
+          "verify_nginx_deployment",
+          "verify_tomcat_deployment",
+          "discover_nginx_certificates",
+          "discover_tomcat_certificates"
+        ]
+      },
+      "PlatformJobType": {
+        "type": "string",
+        "enum": [
+          "start_issue_workflow",
+          "continue_issue_workflow",
+          "renewal_scan",
+          "discovery_scan",
+          "present_http01_challenge",
+          "cleanup_http01_challenge",
+          "deploy_nginx_certificate",
+          "deploy_tomcat_certificate",
+          "verify_nginx_deployment",
+          "verify_tomcat_deployment",
+          "discover_nginx_certificates",
+          "discover_tomcat_certificates"
+        ]
+      },
       "AuthLoginRequest": {
         "type": "object",
         "required": ["username", "password"],
@@ -1641,7 +1746,7 @@
         "required": ["name", "challenge_type"],
         "properties": {
           "name": { "type": "string" },
-          "challenge_type": { "type": "string", "enum": ["http-01", "dns-01"] },
+          "challenge_type": { "$ref": "#/components/schemas/ChallengeType" },
           "auto_renew": { "type": "boolean" },
           "dns_credential_id": { "type": "string", "format": "uuid" }
         }
@@ -1655,16 +1760,19 @@
       },
       "CertificateRequestCreateRequest": {
         "type": "object",
-        "required": ["domain_ids", "ca_account_id", "challenge_type"],
+        "required": ["domain_ids", "ca_account_id", "certificate_type", "challenge_type", "idempotency_key"],
         "properties": {
+          "request_type": { "$ref": "#/components/schemas/CertificateRequestType" },
           "domain_ids": {
             "type": "array",
             "items": { "type": "string", "format": "uuid" },
             "minItems": 1
           },
           "ca_account_id": { "type": "string", "format": "uuid" },
-          "certificate_type": { "type": "string", "enum": ["single", "san", "wildcard"] },
-          "challenge_type": { "type": "string", "enum": ["http-01", "dns-01"] },
+          "asset_id": { "type": "string", "format": "uuid" },
+          "certificate_type": { "$ref": "#/components/schemas/CertificateType" },
+          "challenge_type": { "$ref": "#/components/schemas/ChallengeType" },
+          "idempotency_key": { "type": "string", "minLength": 16, "maxLength": 128 },
           "deployment_target_ids": {
             "type": "array",
             "items": { "type": "string", "format": "uuid" }
@@ -1696,8 +1804,12 @@
         "required": ["name", "target_type"],
         "properties": {
           "name": { "type": "string" },
-          "target_type": { "type": "string", "enum": ["nginx", "tomcat"] },
+          "target_type": { "$ref": "#/components/schemas/DeploymentTargetType" },
           "node_id": { "type": "string", "format": "uuid" },
+          "agent_selector": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
           "config_path": { "type": "string" },
           "certificate_path": { "type": "string" },
           "private_key_path": { "type": "string" },
@@ -1761,11 +1873,15 @@
         "properties": {
           "token": { "type": "string" },
           "node_name": { "type": "string" },
+          "hostname": { "type": "string" },
+          "ip_address": { "type": "string", "format": "ipv4" },
+          "os": { "type": "string" },
+          "arch": { "type": "string" },
           "version": { "type": "string" },
           "protocol_version": { "type": "integer", "minimum": 1 },
           "capabilities": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": { "$ref": "#/components/schemas/AgentCapabilityCode" }
           },
           "labels": {
             "type": "object",
@@ -1779,21 +1895,30 @@
         "properties": {
           "request_id": { "type": "string" },
           "node_id": { "type": "string", "format": "uuid" },
-          "status": { "type": "string", "enum": ["active"] },
+          "status": { "$ref": "#/components/schemas/AgentNodeStatus" },
           "poll_interval_seconds": { "type": "integer", "minimum": 1 }
         }
       },
       "AgentHeartbeatRequest": {
         "type": "object",
-        "required": ["node_id"],
+        "required": ["node_id", "protocol_version", "status"],
         "properties": {
           "node_id": { "type": "string", "format": "uuid" },
+          "protocol_version": { "type": "integer", "minimum": 1 },
+          "status": { "$ref": "#/components/schemas/AgentNodeStatus" },
+          "version": { "type": "string" },
+          "capabilities": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AgentCapabilityCode" }
+          },
           "leases": {
             "type": "array",
             "items": {
               "type": "object",
+              "required": ["job_id", "operation_id", "status"],
               "properties": {
                 "job_id": { "type": "string", "format": "uuid" },
+                "operation_id": { "type": "string" },
                 "status": { "type": "string" }
               }
             }
@@ -1811,10 +1936,16 @@
       },
       "AgentJobPollRequest": {
         "type": "object",
-        "required": ["node_id"],
+        "required": ["node_id", "protocol_version", "supported_schema_versions"],
         "properties": {
           "node_id": { "type": "string", "format": "uuid" },
-          "max_jobs": { "type": "integer", "minimum": 1 }
+          "protocol_version": { "type": "integer", "minimum": 1 },
+          "supported_schema_versions": {
+            "type": "array",
+            "items": { "type": "integer", "enum": [1] },
+            "minItems": 1
+          },
+          "max_jobs": { "type": "integer", "minimum": 1, "maximum": 20 }
         }
       },
       "AgentJobPollResponse": {
@@ -1830,31 +1961,58 @@
       },
       "AgentJob": {
         "type": "object",
-        "required": ["job_id", "job_type", "lease_expire_at", "payload"],
+        "required": ["job_id", "job_type", "schema_version", "operation_id", "lease_expire_at", "payload"],
         "properties": {
           "job_id": { "type": "string", "format": "uuid" },
-          "job_type": { "type": "string" },
+          "job_type": { "$ref": "#/components/schemas/AgentJobType" },
+          "schema_version": { "type": "integer", "enum": [1] },
+          "operation_id": { "type": "string" },
           "lease_expire_at": { "type": "string", "format": "date-time" },
-          "payload": { "type": "object" }
+          "payload": { "$ref": "#/components/schemas/AgentJobPayload" }
+        }
+      },
+      "AgentJobPayload": {
+        "type": "object",
+        "required": ["schema_version", "operation_id"],
+        "additionalProperties": true,
+        "properties": {
+          "schema_version": { "type": "integer", "enum": [1] },
+          "operation_id": { "type": "string" },
+          "asset_id": { "type": "string", "format": "uuid" },
+          "target_id": { "type": "string", "format": "uuid" },
+          "target_type": { "$ref": "#/components/schemas/DeploymentTargetType" },
+          "challenge_type": { "$ref": "#/components/schemas/ChallengeType" },
+          "certificate_ref": { "type": "string" },
+          "private_key_ref": { "type": "string" },
+          "allowed_paths": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
         }
       },
       "AgentJobProgressRequest": {
         "type": "object",
-        "required": ["status"],
+        "required": ["operation_id", "status"],
         "properties": {
+          "operation_id": { "type": "string" },
           "status": { "type": "string", "enum": ["started", "heartbeating", "running"] },
           "message": { "type": "string" },
           "error_code": { "type": "string" },
-          "progress_percent": { "type": "integer", "minimum": 0, "maximum": 100 }
+          "progress_percent": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "evidence": { "type": "object" }
         }
       },
       "AgentJobCompleteRequest": {
         "type": "object",
-        "required": ["result_status"],
+        "required": ["operation_id", "result_status"],
         "properties": {
+          "operation_id": { "type": "string" },
           "result_status": { "type": "string", "enum": ["succeeded", "failed", "timed_out", "abandoned"] },
           "error_code": { "type": "string" },
           "error_message": { "type": "string" },
+          "failed_stage": { "type": "string" },
+          "retryable": { "type": "boolean" },
+          "compensation_required": { "type": "boolean" },
           "evidence": { "type": "object" }
         }
       }
