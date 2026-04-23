@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>审计 - AutoCertX</title>
+    <link rel="stylesheet" href="./prototype.css">
+</head>
+<body data-page="audit">
+<div class="app-shell">
+    <aside class="sidebar">
+        <div id="sidebar-slot"></div>
+    </aside>
+    <div class="workspace">
+        <header class="topbar">
+            <div class="topbar__context" id="topbar-context"></div>
+            <div class="topbar__meta" id="topbar-meta"></div>
+        </header>
+        <main class="page">
+            <section class="page-hero">
+                <div class="page-hero__summary" id="page-hero-text"></div>
+                <div class="hero-actions">
+                    <a class="button-secondary" href="./jobs.html">查看关联作业</a>
+                    <a class="button" href="#">导出审计视图</a>
+                </div>
+            </section>
+
+            <section class="section grid grid--metrics">
+                <article class="metric-card">
+                    <div class="metric-card__label">今日事件</div>
+                    <div class="metric-card__value">386</div>
+                    <div class="metric-card__foot">申请、TXT 操作、部署和设置变更均已入审计</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">高风险动作</div>
+                    <div class="metric-card__value">9</div>
+                    <div class="metric-card__foot">停用节点、修改 Webhook、重试作业</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">凭据使用</div>
+                    <div class="metric-card__value">14</div>
+                    <div class="metric-card__foot">主要为 AliDNS TXT 写入和 ACME 账户调用</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">可导出窗口</div>
+                    <div class="metric-card__value">7 天</div>
+                    <div class="metric-card__foot">按租户隔离导出</div>
+                </article>
+            </section>
+
+            <section class="section filter-bar">
+                <div class="field field--grow">
+                    <label>搜索 actor / resource / trace_id</label>
+                    <input class="input" type="text" value="alidns-edge" />
+                </div>
+                <div class="field">
+                    <label>动作</label>
+                    <select class="select">
+                        <option>全部</option>
+                        <option>dns_record_upsert</option>
+                        <option>certificate_request_create</option>
+                        <option>job_retry</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>时间范围</label>
+                    <select class="select">
+                        <option>最近 24h</option>
+                        <option>最近 7d</option>
+                    </select>
+                </div>
+            </section>
+
+            <section class="section grid grid--two">
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>审计事件列表</h3>
+                            <p>提供 actor、resource、action 和 trace 维度检索。</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>Actor</th>
+                                <th>Action</th>
+                                <th>Resource</th>
+                                <th>结果</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td class="mono">09:18:23</td>
+                                <td>platform.engineer</td>
+                                <td class="mono">certificate_request_create</td>
+                                <td>REQ-20260420-001</td>
+                                <td><span class="pill pill--success">success</span></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">09:19:10</td>
+                                <td>system/dns-executor</td>
+                                <td class="mono">dns_record_upsert</td>
+                                <td>_acme-challenge.edge.example.com</td>
+                                <td><span class="pill pill--success">success</span></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">09:26:42</td>
+                                <td>platform.engineer</td>
+                                <td class="mono">job_retry</td>
+                                <td>JOB-DEPLOY-10012</td>
+                                <td><span class="pill pill--warn">manual</span></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>事件详情</h3>
+                            <p>右侧保留 request_id、trace_id 和 detail 摘要，便于和后端日志串联。</p>
+                        </div>
+                        <span class="pill pill--info mono">trace-5fc1ab</span>
+                    </div>
+                    <div class="stack stack--tight">
+                        <div class="inline-kv">
+                            <span class="inline-kv__key">request_id</span>
+                            <span class="inline-kv__value mono">req-20260420-91823</span>
+                        </div>
+                        <div class="inline-kv">
+                            <span class="inline-kv__key">resource_type</span>
+                            <span class="inline-kv__value">dns_record_operation</span>
+                        </div>
+                        <div class="inline-kv">
+                            <span class="inline-kv__key">actor</span>
+                            <span class="inline-kv__value">system/dns-executor</span>
+                        </div>
+                    </div>
+                    <div class="note" style="margin-top: 14px;">
+                        detail_jsonb 摘要：使用凭据 `alidns-edge` 对 `_acme-challenge.edge.example.com` 执行 UPSERT，TTL=60，返回 requestId=4F8A23CE。
+                    </div>
+                </article>
+            </section>
+        </main>
+    </div>
+</div>
+<script src="./prototype.js"></script>
+</body>
+</html>

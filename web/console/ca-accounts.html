@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CA 账户 - AutoCertX</title>
+    <link rel="stylesheet" href="./prototype.css">
+</head>
+<body data-page="ca-accounts">
+<div class="app-shell">
+    <aside class="sidebar">
+        <div id="sidebar-slot"></div>
+    </aside>
+    <div class="workspace">
+        <header class="topbar">
+            <div class="topbar__context" id="topbar-context"></div>
+            <div class="topbar__meta" id="topbar-meta"></div>
+        </header>
+        <main class="page">
+            <section class="page-hero">
+                <div class="page-hero__summary" id="page-hero-text"></div>
+                <div class="hero-actions">
+                    <a class="button-secondary" href="./audit.html">查看审计</a>
+                    <a class="button" href="#">新增 CA 账户</a>
+                </div>
+            </section>
+
+            <section class="section grid grid--metrics">
+                <article class="metric-card">
+                    <div class="metric-card__label">账户总数</div>
+                    <div class="metric-card__value">4</div>
+                    <div class="metric-card__foot">2 个生产，2 个测试</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">健康账户</div>
+                    <div class="metric-card__value">3</div>
+                    <div class="metric-card__foot">最近目录探测通过</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">关联申请</div>
+                    <div class="metric-card__value">26</div>
+                    <div class="metric-card__foot">近 30 天累计签发请求</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">需要关注</div>
+                    <div class="metric-card__value">1</div>
+                    <div class="metric-card__foot">测试目录响应延迟升高</div>
+                </article>
+            </section>
+
+            <section class="section grid grid--two">
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>CA 账户列表</h3>
+                            <p>展示账户状态、目录地址、能力摘要和最近探测时间。</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead>
+                            <tr>
+                                <th>账户</th>
+                                <th>目录地址</th>
+                                <th>环境</th>
+                                <th>能力</th>
+                                <th>最近检查</th>
+                                <th>状态</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>
+                                    <div class="table__title">le-prod-main</div>
+                                    <div class="table__sub">Let's Encrypt Production</div>
+                                </td>
+                                <td class="mono">acme-v02.api.letsencrypt.org</td>
+                                <td>生产</td>
+                                <td>RSA / SAN / Wildcard</td>
+                                <td class="mono">2026-04-20 08:00</td>
+                                <td><span class="pill pill--success">启用</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="table__title">le-staging</div>
+                                    <div class="table__sub">Let's Encrypt Staging</div>
+                                </td>
+                                <td class="mono">acme-staging-v02.api.letsencrypt.org</td>
+                                <td>测试</td>
+                                <td>RSA / SAN / Wildcard</td>
+                                <td class="mono">2026-04-20 08:05</td>
+                                <td><span class="pill pill--warn">观察</span></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <div class="stack">
+                    <article class="card">
+                        <div class="card__header">
+                            <div>
+                                <h3>账户能力摘要</h3>
+                                <p>用于前端向导中选择 CA 时的能力提示。</p>
+                            </div>
+                        </div>
+                        <div class="stack stack--tight">
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">支持 challenge</span>
+                                <span class="inline-kv__value">HTTP-01 / DNS-01</span>
+                            </div>
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">默认算法</span>
+                                <span class="inline-kv__value">RSA</span>
+                            </div>
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">证书类型</span>
+                                <span class="inline-kv__value">Single / SAN / Wildcard</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card__header">
+                            <div>
+                                <h3>最近关联申请</h3>
+                                <p>把账户治理和申请行为放在同一上下文里查看。</p>
+                            </div>
+                        </div>
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-item__dot"></div>
+                                <div class="timeline-item__content">
+                                    <h4>REQ-20260420-001</h4>
+                                    <p>`le-prod-main` 用于 `*.edge.example.com` 新申请，当前进入 challenge。</p>
+                                    <div class="timeline-item__time mono">2026-04-20 09:18</div>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-item__dot"></div>
+                                <div class="timeline-item__content">
+                                    <h4>REQ-20260419-013</h4>
+                                    <p>`le-staging` 用于演练环境申请，目录探测耗时偏高但仍完成签发。</p>
+                                    <div class="timeline-item__time mono">2026-04-19 17:06</div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+<script src="./prototype.js"></script>
+</body>
+</html>

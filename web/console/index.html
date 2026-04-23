@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仪表盘 - AutoCertX</title>
+    <link rel="stylesheet" href="./prototype.css">
+</head>
+<body data-page="dashboard">
+<div class="app-shell">
+    <aside class="sidebar">
+        <div id="sidebar-slot"></div>
+    </aside>
+    <div class="workspace">
+        <header class="topbar">
+            <div class="topbar__context" id="topbar-context"></div>
+            <div class="topbar__meta" id="topbar-meta"></div>
+        </header>
+        <main class="page">
+            <section class="page-hero">
+                <div class="page-hero__summary" id="page-hero-text"></div>
+                <div class="hero-actions">
+                    <a class="button-secondary" href="./jobs.html">查看作业中心</a>
+                    <a class="button" href="./assets.html">进入证书资产</a>
+                </div>
+            </section>
+
+            <section class="section grid grid--metrics">
+                <article class="metric-card">
+                    <div class="metric-card__label">域名资产</div>
+                    <div class="metric-card__value">128</div>
+                    <div class="metric-card__foot">其中 96 个启用 DNS-01 自动验证</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">证书资产</div>
+                    <div class="metric-card__value">214</div>
+                    <div class="metric-card__foot">18 个资产在最近 30 天内完成签发</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">即将到期</div>
+                    <div class="metric-card__value">11</div>
+                    <div class="metric-card__foot">3 个资产在 7 天内进入强提醒窗口</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">未纳管发现</div>
+                    <div class="metric-card__value">7</div>
+                    <div class="metric-card__foot">主要集中在 Tomcat 边缘节点</div>
+                </article>
+            </section>
+
+            <section class="section grid grid--split">
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>风险工作台</h3>
+                            <p>优先处理会直接影响续期闭环和生产部署的异常。</p>
+                        </div>
+                        <span class="pill pill--danger">高优先级 4</span>
+                    </div>
+                    <div class="stack">
+                        <div class="list-item">
+                            <div>
+                                <p class="list-item__title">DNS-01 challenge 失败</p>
+                                <p class="list-item__desc">`*.edge.example.com` 在阿里云 DNS TXT 写入阶段被 API 限流。</p>
+                            </div>
+                            <span class="pill pill--danger">待处理</span>
+                        </div>
+                        <div class="list-item">
+                            <div>
+                                <p class="list-item__title">Tomcat 部署后验证失败</p>
+                                <p class="list-item__desc">`node-sh02-07` 已完成 PKCS12 覆盖，但应用侧尚未 reload。</p>
+                            </div>
+                            <span class="pill pill--warn">观察中</span>
+                        </div>
+                        <div class="list-item">
+                            <div>
+                                <p class="list-item__title">发现未纳管证书</p>
+                                <p class="list-item__desc">在 `gateway-admin` 服务上发现 2 份 RSA 证书未与资产台账匹配。</p>
+                            </div>
+                            <span class="pill pill--info">可认领</span>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>交付面健康</h3>
+                            <p>节点与目标联合视角，聚焦执行能力是否稳定。</p>
+                        </div>
+                        <span class="pill pill--success">在线 41 / 44</span>
+                    </div>
+                    <div class="stack">
+                        <div>
+                            <div class="list-item" style="padding-top: 0;">
+                                <div>
+                                    <p class="list-item__title">部署目标覆盖率</p>
+                                    <p class="list-item__desc">NGINX 目标 26 个，Tomcat 目标 12 个，自动验证开启率 92%。</p>
+                                </div>
+                                <span class="pill pill--info">正常</span>
+                            </div>
+                            <div class="risk-bar"><div class="risk-bar__fill" style="width: 32%; background: linear-gradient(90deg, #4daaa3, #176d73);"></div></div>
+                        </div>
+                        <div>
+                            <div class="list-item">
+                                <div>
+                                    <p class="list-item__title">异常节点</p>
+                                    <p class="list-item__desc">3 个节点版本落后于控制面协议基线，建议进入交付管理升级。</p>
+                                </div>
+                                <span class="pill pill--warn">3</span>
+                            </div>
+                            <div class="risk-bar"><div class="risk-bar__fill" style="width: 18%;"></div></div>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <section class="section grid grid--two">
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>最近 7 天签发与失败趋势</h3>
+                            <p>蓝绿色柱体表示成功签发，橙色和红色表示失败与重试。</p>
+                        </div>
+                        <span class="pill pill--muted mono">7D</span>
+                    </div>
+                    <div class="mini-bars" aria-label="7 days trend chart">
+                        <span style="height: 76%;"></span>
+                        <span style="height: 48%;"></span>
+                        <span class="warn" style="height: 32%;"></span>
+                        <span style="height: 68%;"></span>
+                        <span style="height: 82%;"></span>
+                        <span class="danger" style="height: 26%;"></span>
+                        <span style="height: 72%;"></span>
+                    </div>
+                </article>
+
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>今日建议动作</h3>
+                            <p>按影响范围和恢复收益排序，便于当班处理。</p>
+                        </div>
+                    </div>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-item__dot"></div>
+                            <div class="timeline-item__content">
+                                <h4>先处理 2 个失败 challenge</h4>
+                                <p>避免泛域名申请积压，优先检查阿里云凭据限流与 TXT 残留。</p>
+                                <div class="timeline-item__time mono">09:00 - 建议处理窗口</div>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-item__dot"></div>
+                            <div class="timeline-item__content">
+                                <h4>认领 3 条未纳管发现</h4>
+                                <p>可将发现记录映射到现有资产，减少重复申请和台账偏差。</p>
+                                <div class="timeline-item__time mono">11:30 - 认领优先</div>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-item__dot"></div>
+                            <div class="timeline-item__content">
+                                <h4>升级异常节点协议版本</h4>
+                                <p>3 个节点尚未支持最新部署回执格式，会影响证据回传完整性。</p>
+                                <div class="timeline-item__time mono">14:00 - 交付窗口</div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </section>
+        </main>
+    </div>
+</div>
+<script src="./prototype.js"></script>
+</body>
+</html>

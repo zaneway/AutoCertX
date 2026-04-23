@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>证书资产 - AutoCertX</title>
+    <link rel="stylesheet" href="./prototype.css">
+</head>
+<body data-page="assets">
+<div class="app-shell">
+    <aside class="sidebar">
+        <div id="sidebar-slot"></div>
+    </aside>
+    <div class="workspace">
+        <header class="topbar">
+            <div class="topbar__context" id="topbar-context"></div>
+            <div class="topbar__meta" id="topbar-meta"></div>
+        </header>
+        <main class="page">
+            <section class="page-hero">
+                <div class="page-hero__summary" id="page-hero-text"></div>
+                <div class="hero-actions">
+                    <a class="button-secondary" href="./jobs.html">查看失败作业</a>
+                    <a class="button" href="./requests.html">发起证书申请</a>
+                </div>
+            </section>
+
+            <section class="section grid grid--metrics">
+                <article class="metric-card">
+                    <div class="metric-card__label">当前资产</div>
+                    <div class="metric-card__value">214</div>
+                    <div class="metric-card__foot">含 28 份泛域名与 63 份多 SAN 证书</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">高风险资产</div>
+                    <div class="metric-card__value">11</div>
+                    <div class="metric-card__foot">已进入续期窗口但最近作业失败</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">最近续期成功</div>
+                    <div class="metric-card__value">17</div>
+                    <div class="metric-card__foot">近 7 天自动续期成功率 94%</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">待处理申请</div>
+                    <div class="metric-card__value">6</div>
+                    <div class="metric-card__foot">2 个 challenge 中，4 个部署中</div>
+                </article>
+            </section>
+
+            <section class="section card">
+                <div class="card__header">
+                    <div>
+                        <h3>资产工作台</h3>
+                        <p>把资产列表、申请记录、部署状态和发现状态统一放在一个生命周期入口。</p>
+                    </div>
+                    <div class="tabs">
+                        <span class="tab tab--active">资产列表</span>
+                        <span class="tab">申请记录</span>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>资产名</th>
+                            <th>当前版本</th>
+                            <th>到期时间</th>
+                            <th>部署状态</th>
+                            <th>发现状态</th>
+                            <th>目标数</th>
+                            <th>风险</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>
+                                <div class="table__title">edge-gateway-prod</div>
+                                <div class="table__sub">CN: *.edge.example.com</div>
+                            </td>
+                            <td class="mono">rsa-2026-04-15-0012</td>
+                            <td>2026-07-14</td>
+                            <td><span class="pill pill--warn">部分失败</span></td>
+                            <td><span class="pill pill--info">已匹配</span></td>
+                            <td>4</td>
+                            <td><span class="pill pill--danger">高</span></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="table__title">api-service-prod</div>
+                                <div class="table__sub">CN: api.example.com</div>
+                            </td>
+                            <td class="mono">rsa-2026-04-18-0003</td>
+                            <td>2026-07-17</td>
+                            <td><span class="pill pill--success">成功</span></td>
+                            <td><span class="pill pill--success">正常</span></td>
+                            <td>2</td>
+                            <td><span class="pill pill--muted">低</span></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="table__title">console-pre</div>
+                                <div class="table__sub">CN: admin.console.example.com</div>
+                            </td>
+                            <td class="mono">rsa-2026-04-11-0009</td>
+                            <td>2026-05-02</td>
+                            <td><span class="pill pill--warn">待部署</span></td>
+                            <td><span class="pill pill--info">未扫描</span></td>
+                            <td>1</td>
+                            <td><span class="pill pill--warn">中</span></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="section grid grid--two">
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>最近申请与续期</h3>
+                            <p>不再单独设置一级导航，申请记录直接归入资产工作台查看。</p>
+                        </div>
+                        <a class="button-ghost" href="./requests.html">进入申请向导</a>
+                    </div>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-item__dot"></div>
+                            <div class="timeline-item__content">
+                                <h4>申请 `*.edge.example.com`</h4>
+                                <p>当前处于 DNS-01 校验阶段，首个 Job 已创建并关联到阿里云 TXT 写入任务。</p>
+                                <div class="timeline-item__time mono">REQ-20260420-001 / 09:18:22</div>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-item__dot"></div>
+                            <div class="timeline-item__content">
+                                <h4>续期 `api.example.com` 成功</h4>
+                                <p>新版本已部署到 2 个 NGINX 目标，部署后验证通过。</p>
+                                <div class="timeline-item__time mono">WF-20260419-072 / 23:41:05</div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <div class="stack">
+                    <article class="card">
+                        <div class="card__header">
+                            <div>
+                                <h3>高风险提示</h3>
+                                <p>优先清理会阻断闭环的资产异常。</p>
+                            </div>
+                        </div>
+                        <div class="stack stack--tight">
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">部署部分失败</span>
+                                <span class="inline-kv__value">4 个资产</span>
+                            </div>
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">发现未匹配</span>
+                                <span class="inline-kv__value">7 条记录</span>
+                            </div>
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">续期窗口内失败</span>
+                                <span class="inline-kv__value">3 个资产</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card__header">
+                            <div>
+                                <h3>资产内申请入口说明</h3>
+                                <p>原一级菜单已取消，避免把生命周期工作流拆散。</p>
+                            </div>
+                        </div>
+                        <div class="note">
+                            推荐操作链路为：<strong>证书资产</strong> -> <strong>发起申请</strong> -> <strong>作业中心</strong> -> <strong>资产详情</strong>。
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+<script src="./prototype.js"></script>
+</body>
+</html>

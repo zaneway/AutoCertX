@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>发现结果 - AutoCertX</title>
+    <link rel="stylesheet" href="./prototype.css">
+</head>
+<body data-page="discoveries">
+<div class="app-shell">
+    <aside class="sidebar">
+        <div id="sidebar-slot"></div>
+    </aside>
+    <div class="workspace">
+        <header class="topbar">
+            <div class="topbar__context" id="topbar-context"></div>
+            <div class="topbar__meta" id="topbar-meta"></div>
+        </header>
+        <main class="page">
+            <section class="page-hero">
+                <div class="page-hero__summary" id="page-hero-text"></div>
+                <div class="hero-actions">
+                    <a class="button-secondary" href="./delivery.html">查看交付管理</a>
+                    <a class="button" href="./assets.html">认领到资产</a>
+                </div>
+            </section>
+
+            <section class="section grid grid--metrics">
+                <article class="metric-card">
+                    <div class="metric-card__label">总发现记录</div>
+                    <div class="metric-card__value">62</div>
+                    <div class="metric-card__foot">包含 NGINX 与 Tomcat 配置扫描结果</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">已匹配</div>
+                    <div class="metric-card__value">47</div>
+                    <div class="metric-card__foot">可回溯到现有证书资产</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">未纳管</div>
+                    <div class="metric-card__value">7</div>
+                    <div class="metric-card__foot">建议优先认领或补录</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">异常</div>
+                    <div class="metric-card__value">8</div>
+                    <div class="metric-card__foot">包括无效证书与路径缺失</div>
+                </article>
+            </section>
+
+            <section class="section filter-bar">
+                <div class="field field--grow">
+                    <label>搜索服务 / 节点 / 域名</label>
+                    <input class="input" type="text" value="edge" />
+                </div>
+                <div class="field">
+                    <label>匹配状态</label>
+                    <select class="select">
+                        <option>全部</option>
+                        <option>matched</option>
+                        <option>unmanaged</option>
+                        <option>invalid</option>
+                        <option>ignored</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>目标类型</label>
+                    <select class="select">
+                        <option>全部</option>
+                        <option>NGINX</option>
+                        <option>Tomcat</option>
+                    </select>
+                </div>
+            </section>
+
+            <section class="section grid grid--two">
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>发现记录</h3>
+                            <p>展示节点、服务、路径、指纹、到期时间和匹配结果，便于认领或忽略。</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead>
+                            <tr>
+                                <th>服务</th>
+                                <th>节点</th>
+                                <th>配置路径</th>
+                                <th>到期时间</th>
+                                <th>匹配状态</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>
+                                    <div class="table__title">edge-gateway</div>
+                                    <div class="table__sub mono">SHA256: 91:AB:3C:...</div>
+                                </td>
+                                <td class="mono">node-hz01-03</td>
+                                <td class="mono">/etc/nginx/conf.d/edge.conf</td>
+                                <td>2026-07-14</td>
+                                <td><span class="pill pill--success">matched</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="table__title">admin-console</div>
+                                    <div class="table__sub mono">SHA256: 19:CE:21:...</div>
+                                </td>
+                                <td class="mono">node-sh02-07</td>
+                                <td class="mono">/opt/tomcat/conf/server.xml</td>
+                                <td>2026-05-02</td>
+                                <td><span class="pill pill--info">unmanaged</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="table__title">legacy-proxy</div>
+                                    <div class="table__sub mono">SHA256: 55:EF:0A:...</div>
+                                </td>
+                                <td class="mono">node-gz02-02</td>
+                                <td class="mono">/etc/nginx/certs/legacy.pem</td>
+                                <td>2026-04-27</td>
+                                <td><span class="pill pill--danger">invalid</span></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <div class="stack">
+                    <article class="card">
+                        <div class="card__header">
+                            <div>
+                                <h3>待认领队列</h3>
+                                <p>优先认领可回收进台账的记录，减少重复申请。</p>
+                            </div>
+                        </div>
+                        <div class="stack">
+                            <div class="list-item">
+                                <div>
+                                    <p class="list-item__title">admin-console</p>
+                                    <p class="list-item__desc">发现于 `node-sh02-07`，建议认领到 `console-pre` 资产。</p>
+                                </div>
+                                <span class="pill pill--info">可认领</span>
+                            </div>
+                            <div class="list-item">
+                                <div>
+                                    <p class="list-item__title">ops-portal</p>
+                                    <p class="list-item__desc">证书 SAN 与现有资产高度相似，可考虑人工复核后认领。</p>
+                                </div>
+                                <span class="pill pill--warn">待复核</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card__header">
+                            <div>
+                                <h3>异常说明</h3>
+                                <p>这类问题通常需要和交付管理或作业中心联合排查。</p>
+                            </div>
+                        </div>
+                        <div class="note danger-note">
+                            `legacy-proxy` 证书将在 7 天内到期，但既未匹配现有资产，也没有可用部署目标，建议优先补录或手工处理。
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+<script src="./prototype.js"></script>
+</body>
+</html>

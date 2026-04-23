@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统设置 - AutoCertX</title>
+    <link rel="stylesheet" href="./prototype.css">
+</head>
+<body data-page="settings">
+<div class="app-shell">
+    <aside class="sidebar">
+        <div id="sidebar-slot"></div>
+    </aside>
+    <div class="workspace">
+        <header class="topbar">
+            <div class="topbar__context" id="topbar-context"></div>
+            <div class="topbar__meta" id="topbar-meta"></div>
+        </header>
+        <main class="page">
+            <section class="page-hero">
+                <div class="page-hero__summary" id="page-hero-text"></div>
+                <div class="hero-actions">
+                    <a class="button-secondary" href="./audit.html">查看配置审计</a>
+                    <a class="button" href="#">保存配置</a>
+                </div>
+            </section>
+
+            <section class="section grid grid--three">
+                <article class="metric-card">
+                    <div class="metric-card__label">Webhook</div>
+                    <div class="metric-card__value">3</div>
+                    <div class="metric-card__foot">2 个启用，1 个测试中</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">续期窗口</div>
+                    <div class="metric-card__value">30 天</div>
+                    <div class="metric-card__foot">提前 15 天进入告警提醒</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">安全基线</div>
+                    <div class="metric-card__value">RSA</div>
+                    <div class="metric-card__foot">一期只允许 RSA，后续扩展预留</div>
+                </article>
+            </section>
+
+            <section class="section grid grid--split">
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>Webhook 设置</h3>
+                            <p>配置系统事件通知的下游接收端，变更后必须留痕。</p>
+                        </div>
+                        <span class="pill pill--success">2 active</span>
+                    </div>
+                    <div class="stack">
+                        <div class="inline-kv">
+                            <span class="inline-kv__key">ops-alert-webhook</span>
+                            <span class="inline-kv__value">启用 / deployment_failed</span>
+                        </div>
+                        <div class="inline-kv">
+                            <span class="inline-kv__key">audit-export-webhook</span>
+                            <span class="inline-kv__value">启用 / audit_exported</span>
+                        </div>
+                        <div class="inline-kv">
+                            <span class="inline-kv__key">security-review-hook</span>
+                            <span class="inline-kv__value">测试中 / dns_record_upsert</span>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>续期窗口设置</h3>
+                            <p>控制自动续期启动和告警升级的时间点。</p>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="field">
+                            <label>自动续期启动</label>
+                            <input class="input" type="text" value="到期前 30 天">
+                        </div>
+                        <div class="field">
+                            <label>高风险提醒</label>
+                            <input class="input" type="text" value="到期前 15 天">
+                        </div>
+                        <div class="field">
+                            <label>失败重试间隔</label>
+                            <input class="input" type="text" value="15 分钟 / 3 次">
+                        </div>
+                        <div class="field">
+                            <label>人工升级阈值</label>
+                            <input class="input" type="text" value="连续失败 3 次">
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <section class="section grid grid--split">
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>基础安全设置</h3>
+                            <p>一期重点约束算法、账户认证和敏感操作留痕。</p>
+                        </div>
+                    </div>
+                    <div class="stack stack--tight">
+                        <div class="inline-kv">
+                            <span class="inline-kv__key">允许算法</span>
+                            <span class="inline-kv__value">RSA</span>
+                        </div>
+                        <div class="inline-kv">
+                            <span class="inline-kv__key">登录方式</span>
+                            <span class="inline-kv__value">账号密码</span>
+                        </div>
+                        <div class="inline-kv">
+                            <span class="inline-kv__key">高风险动作</span>
+                            <span class="inline-kv__value">二次确认 + 审计</span>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>配置变更提示</h3>
+                            <p>原型中直接展示高风险变更的影响范围。</p>
+                        </div>
+                    </div>
+                    <div class="note">
+                        修改续期窗口将影响当前 214 个证书资产的后续调度计算。保存前应确认运维窗口和告警策略已经同步。
+                    </div>
+                </article>
+            </section>
+        </main>
+    </div>
+</div>
+<script src="./prototype.js"></script>
+</body>
+</html>

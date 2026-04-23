@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作业中心 - AutoCertX</title>
+    <link rel="stylesheet" href="./prototype.css">
+</head>
+<body data-page="jobs">
+<div class="app-shell">
+    <aside class="sidebar">
+        <div id="sidebar-slot"></div>
+    </aside>
+    <div class="workspace">
+        <header class="topbar">
+            <div class="topbar__context" id="topbar-context"></div>
+            <div class="topbar__meta" id="topbar-meta"></div>
+        </header>
+        <main class="page">
+            <section class="page-hero">
+                <div class="page-hero__summary" id="page-hero-text"></div>
+                <div class="hero-actions">
+                    <a class="button-secondary" href="./audit.html">查看审计链路</a>
+                    <a class="button" href="#">重试选中作业</a>
+                </div>
+            </section>
+
+            <section class="section grid grid--metrics">
+                <article class="metric-card">
+                    <div class="metric-card__label">运行中</div>
+                    <div class="metric-card__value">14</div>
+                    <div class="metric-card__foot">包含 challenge、部署、发现三类任务</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">失败</div>
+                    <div class="metric-card__value">6</div>
+                    <div class="metric-card__foot">4 个可重试，2 个需人工处理</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">平均 attempts</div>
+                    <div class="metric-card__value">1.7</div>
+                    <div class="metric-card__foot">重试主要集中在 DNS-01 作业</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">排队中</div>
+                    <div class="metric-card__value">12</div>
+                    <div class="metric-card__foot">等待节点拉取或 lease 回收</div>
+                </article>
+            </section>
+
+            <section class="section filter-bar">
+                <div class="field field--grow">
+                    <label>搜索 Job / 资源 / 错误码</label>
+                    <input class="input" type="text" value="deploy" />
+                </div>
+                <div class="field">
+                    <label>状态</label>
+                    <select class="select">
+                        <option>失败</option>
+                        <option>运行中</option>
+                        <option>全部</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>类型</label>
+                    <select class="select">
+                        <option>全部</option>
+                        <option>issue_certificate</option>
+                        <option>deploy_nginx_certificate</option>
+                    </select>
+                </div>
+            </section>
+
+            <section class="section grid grid--two">
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>作业列表</h3>
+                            <p>以失败、attempt 和错误证据为核心，承担统一排障入口角色。</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead>
+                            <tr>
+                                <th>Job</th>
+                                <th>资源</th>
+                                <th>优先级</th>
+                                <th>最近错误</th>
+                                <th>状态</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>
+                                    <div class="table__title mono">JOB-DEPLOY-10012</div>
+                                    <div class="table__sub">deploy_tomcat_certificate</div>
+                                </td>
+                                <td>console-pre</td>
+                                <td>P1</td>
+                                <td class="mono">VERIFY_RELOAD_TIMEOUT</td>
+                                <td><span class="pill pill--danger">failed</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="table__title mono">JOB-DNS-10019</div>
+                                    <div class="table__sub">complete_dns01_challenge</div>
+                                </td>
+                                <td>*.edge.example.com</td>
+                                <td>P1</td>
+                                <td class="mono">TXT_PROPAGATION_TIMEOUT</td>
+                                <td><span class="pill pill--warn">retry</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="table__title mono">JOB-DISC-10007</div>
+                                    <div class="table__sub">discover_tomcat_certificates</div>
+                                </td>
+                                <td>node-sh02-07</td>
+                                <td>P2</td>
+                                <td class="mono">-</td>
+                                <td><span class="pill pill--info">running</span></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <div class="stack">
+                    <article class="card">
+                        <div class="card__header">
+                            <div>
+                                <h3>Attempt 时间线</h3>
+                                <p>这里模拟 `jobs + job_attempts` 分离后的排障视图。</p>
+                            </div>
+                            <span class="pill pill--danger">3 attempts</span>
+                        </div>
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-item__dot"></div>
+                                <div class="timeline-item__content">
+                                    <h4>Attempt #1 / node-sh02-07</h4>
+                                    <p>PKCS12 写入成功，Tomcat reload 卡住超时，lease 到期后触发重试。</p>
+                                    <div class="timeline-item__time mono">08:12:08 - timeout</div>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-item__dot"></div>
+                                <div class="timeline-item__content">
+                                    <h4>Attempt #2 / node-sh02-07</h4>
+                                    <p>reload 完成，但部署后验证返回旧证书指纹，系统标记失败。</p>
+                                    <div class="timeline-item__time mono">08:31:46 - verify failed</div>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-item__dot"></div>
+                                <div class="timeline-item__content">
+                                    <h4>Attempt #3 / waiting</h4>
+                                    <p>准备进入人工重试窗口，需检查应用是否真正引用新 keystore。</p>
+                                    <div class="timeline-item__time mono">09:10:00 - pending</div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card__header">
+                            <div>
+                                <h3>错误证据摘要</h3>
+                                <p>保持错误码、原始消息和关联资源可快速串联。</p>
+                            </div>
+                        </div>
+                        <div class="stack stack--tight">
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">error_code</span>
+                                <span class="inline-kv__value mono">VERIFY_RELOAD_TIMEOUT</span>
+                            </div>
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">asset</span>
+                                <span class="inline-kv__value">console-pre</span>
+                            </div>
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">target</span>
+                                <span class="inline-kv__value">console-tomcat-pre</span>
+                            </div>
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">node</span>
+                                <span class="inline-kv__value mono">node-sh02-07</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+<script src="./prototype.js"></script>
+</body>
+</html>

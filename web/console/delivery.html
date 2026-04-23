@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交付管理 - AutoCertX</title>
+    <link rel="stylesheet" href="./prototype.css">
+</head>
+<body data-page="delivery">
+<div class="app-shell">
+    <aside class="sidebar">
+        <div id="sidebar-slot"></div>
+    </aside>
+    <div class="workspace">
+        <header class="topbar">
+            <div class="topbar__context" id="topbar-context"></div>
+            <div class="topbar__meta" id="topbar-meta"></div>
+        </header>
+        <main class="page">
+            <section class="page-hero">
+                <div class="page-hero__summary" id="page-hero-text"></div>
+                <div class="hero-actions">
+                    <a class="button-secondary" href="#">创建注册令牌</a>
+                    <a class="button" href="#">新建部署目标</a>
+                </div>
+            </section>
+
+            <section class="section grid grid--metrics">
+                <article class="metric-card">
+                    <div class="metric-card__label">部署目标</div>
+                    <div class="metric-card__value">38</div>
+                    <div class="metric-card__foot">NGINX 26，Tomcat 12</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">节点在线</div>
+                    <div class="metric-card__value">41 / 44</div>
+                    <div class="metric-card__foot">3 个节点需要升级或排障</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">最近部署失败</div>
+                    <div class="metric-card__value">4</div>
+                    <div class="metric-card__foot">主要为 Tomcat reload 不生效</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-card__label">发现异常</div>
+                    <div class="metric-card__value">6</div>
+                    <div class="metric-card__foot">其中 3 条可直接认领到现有资产</div>
+                </article>
+            </section>
+
+            <section class="section card">
+                <div class="card__header">
+                    <div>
+                        <h3>交付管理页签</h3>
+                        <p>导航已合并，但仍保留部署目标和节点管理两个子视角，不合并领域模型与接口。</p>
+                    </div>
+                    <div class="tabs">
+                        <span class="tab tab--active">部署目标</span>
+                        <span class="tab">节点管理</span>
+                    </div>
+                </div>
+                <div class="note">
+                    当前页面原型同时展示两个子域，实际产品中可通过页签切换为独立列表与详情页。
+                </div>
+            </section>
+
+            <section class="section grid grid--split">
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>部署目标</h3>
+                            <p>目标类型、安装路径、节点选择器和最近部署结果在这里统一治理。</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead>
+                            <tr>
+                                <th>目标</th>
+                                <th>类型</th>
+                                <th>节点选择器</th>
+                                <th>关联资产</th>
+                                <th>最近部署</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>
+                                    <div class="table__title">edge-nginx-cluster</div>
+                                    <div class="table__sub">`/etc/nginx/certs/*.pem`</div>
+                                </td>
+                                <td>NGINX</td>
+                                <td class="mono">region=hz, role=edge</td>
+                                <td>12</td>
+                                <td><span class="pill pill--success">成功</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="table__title">console-tomcat-pre</div>
+                                    <div class="table__sub">PKCS12 + JSSE</div>
+                                </td>
+                                <td>Tomcat</td>
+                                <td class="mono">env=pre, app=console</td>
+                                <td>3</td>
+                                <td><span class="pill pill--warn">待验证</span></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>节点管理</h3>
+                            <p>节点健康、协议版本、能力和最近任务结果在这里查看。</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead>
+                            <tr>
+                                <th>节点</th>
+                                <th>版本</th>
+                                <th>标签</th>
+                                <th>最近心跳</th>
+                                <th>状态</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>
+                                    <div class="table__title">node-hz01-03</div>
+                                    <div class="table__sub">supports: http01, nginx-discover</div>
+                                </td>
+                                <td class="mono">1.0.8</td>
+                                <td class="mono">region=hz / role=edge</td>
+                                <td class="mono">09:29:40</td>
+                                <td><span class="pill pill--success">在线</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="table__title">node-sh02-07</div>
+                                    <div class="table__sub">supports: tomcat-deploy, tomcat-discover</div>
+                                </td>
+                                <td class="mono">1.0.6</td>
+                                <td class="mono">region=sh / app=console</td>
+                                <td class="mono">09:28:11</td>
+                                <td><span class="pill pill--warn">升级中</span></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+
+            <section class="section grid grid--split">
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>最近部署异常</h3>
+                            <p>通过交付域直接联动作业与资产排障。</p>
+                        </div>
+                    </div>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-item__dot"></div>
+                            <div class="timeline-item__content">
+                                <h4>console-tomcat-pre reload 未生效</h4>
+                                <p>PKCS12 已写入，但应用未切换新证书，需进入作业中心查看回执。</p>
+                                <div class="timeline-item__time mono">JOB-DEPLOY-10012 / 08:59</div>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-item__dot"></div>
+                            <div class="timeline-item__content">
+                                <h4>edge-nginx-cluster 某节点路径缺失</h4>
+                                <p>`node-hz01-11` 缺少配置回滚路径，自动部署被阻断。</p>
+                                <div class="timeline-item__time mono">JOB-DEPLOY-10008 / 08:15</div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="card">
+                    <div class="card__header">
+                        <div>
+                            <h3>节点健康摘要</h3>
+                            <p>节点数值越低，说明协议版本、能力或心跳存在问题。</p>
+                        </div>
+                    </div>
+                    <div class="stack">
+                        <div>
+                            <div class="list-item" style="padding-top: 0;">
+                                <div>
+                                    <p class="list-item__title">协议兼容度</p>
+                                    <p class="list-item__desc">大多数节点已支持最新部署回执格式。</p>
+                                </div>
+                                <span class="pill pill--success">93%</span>
+                            </div>
+                            <div class="risk-bar"><div class="risk-bar__fill" style="width: 78%; background: linear-gradient(90deg, #4daaa3, #176d73);"></div></div>
+                        </div>
+                        <div>
+                            <div class="list-item">
+                                <div>
+                                    <p class="list-item__title">发现能力覆盖率</p>
+                                    <p class="list-item__desc">Tomcat 发现能力仍有 2 个节点未启用。</p>
+                                </div>
+                                <span class="pill pill--warn">81%</span>
+                            </div>
+                            <div class="risk-bar"><div class="risk-bar__fill" style="width: 56%;"></div></div>
+                        </div>
+                    </div>
+                </article>
+            </section>
+        </main>
+    </div>
+</div>
+<script src="./prototype.js"></script>
+</body>
+</html>

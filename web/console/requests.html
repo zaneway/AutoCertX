@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>发起证书申请 - AutoCertX</title>
+    <link rel="stylesheet" href="./prototype.css">
+</head>
+<body data-page="request">
+<div class="app-shell">
+    <aside class="sidebar">
+        <div id="sidebar-slot"></div>
+    </aside>
+    <div class="workspace">
+        <header class="topbar">
+            <div class="topbar__context" id="topbar-context"></div>
+            <div class="topbar__meta" id="topbar-meta"></div>
+        </header>
+        <main class="page">
+            <section class="page-hero">
+                <div class="page-hero__summary" id="page-hero-text"></div>
+                <div class="hero-actions">
+                    <a class="button-secondary" href="./assets.html">返回证书资产</a>
+                    <a class="button" href="./jobs.html">查看提交后作业</a>
+                </div>
+            </section>
+
+            <section class="section wizard">
+                <div class="stack">
+                    <article class="card">
+                        <div class="card__header">
+                            <div>
+                                <h3>申请步骤</h3>
+                                <p>按域名、签发参数、部署目标和风险复核逐步收敛，保持和后端校验规则一致。</p>
+                            </div>
+                        </div>
+                        <div class="wizard-steps">
+                            <div class="wizard-step wizard-step--active">
+                                <div class="wizard-step__index">Step 1</div>
+                                <h4>上下文与域名</h4>
+                                <p>选择项目环境、主域名和 SAN 域名。</p>
+                            </div>
+                            <div class="wizard-step">
+                                <div class="wizard-step__index">Step 2</div>
+                                <h4>签发参数</h4>
+                                <p>选择 CA、证书类型与 challenge 方式。</p>
+                            </div>
+                            <div class="wizard-step">
+                                <div class="wizard-step__index">Step 3</div>
+                                <h4>部署目标</h4>
+                                <p>绑定 NGINX/Tomcat 目标和节点选择器。</p>
+                            </div>
+                            <div class="wizard-step">
+                                <div class="wizard-step__index">Step 4</div>
+                                <h4>复核并提交</h4>
+                                <p>确认风险、生成申请单并进入作业中心。</p>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card__header">
+                            <div>
+                                <h3>Step 1: 上下文与域名</h3>
+                                <p>当前示例演示泛域名申请，因此后续 challenge 将限制为 DNS-01。</p>
+                            </div>
+                            <span class="pill pill--info">向导模式</span>
+                        </div>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label>项目</label>
+                                <select class="select">
+                                    <option>global-edge</option>
+                                    <option>internal-console</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>环境</label>
+                                <select class="select">
+                                    <option>生产</option>
+                                    <option>预发</option>
+                                </select>
+                            </div>
+                            <div class="field field--full">
+                                <label>主域名</label>
+                                <select class="select">
+                                    <option>*.edge.example.com</option>
+                                    <option>api.example.com</option>
+                                </select>
+                            </div>
+                            <div class="field field--full">
+                                <label>SAN 域名</label>
+                                <textarea class="textarea">edge.example.com
+admin.edge.example.com</textarea>
+                            </div>
+                            <div class="field">
+                                <label>CA</label>
+                                <select class="select">
+                                    <option>Let's Encrypt Production</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>证书类型</label>
+                                <select class="select">
+                                    <option>Wildcard + SAN</option>
+                                    <option>Single Domain</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Challenge</label>
+                                <select class="select">
+                                    <option>DNS-01 (AliDNS)</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>部署目标</label>
+                                <select class="select">
+                                    <option>edge-nginx-cluster</option>
+                                    <option>edge-tomcat-console</option>
+                                </select>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="stack">
+                    <article class="card">
+                        <div class="card__header">
+                            <div>
+                                <h3>提交预览</h3>
+                                <p>提交后会创建 `CertificateRequest` 与首个 Job。</p>
+                            </div>
+                        </div>
+                        <div class="stack stack--tight">
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">主域名</span>
+                                <span class="inline-kv__value mono">*.edge.example.com</span>
+                            </div>
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">CA</span>
+                                <span class="inline-kv__value">Let's Encrypt</span>
+                            </div>
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">Challenge</span>
+                                <span class="inline-kv__value">DNS-01 / AliDNS</span>
+                            </div>
+                            <div class="inline-kv">
+                                <span class="inline-kv__key">部署目标</span>
+                                <span class="inline-kv__value">edge-nginx-cluster</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card__header">
+                            <div>
+                                <h3>规则提示</h3>
+                                <p>这些规则应与后端校验口径完全一致。</p>
+                            </div>
+                        </div>
+                        <div class="note">
+                            泛域名证书只能选择 <strong>DNS-01</strong>。当前使用阿里云凭据 `alidns-edge` 自动写入 TXT 记录，提交后将进入作业中心跟踪。
+                        </div>
+                        <div class="note danger-note" style="margin-top: 12px;">
+                            如果部署目标未配置回滚路径或节点标签不匹配，申请虽然可创建，但后续部署作业会进入失败或待人工处理状态。
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="section card">
+                <div class="footer-actions">
+                    <div class="footer-actions__group">
+                        <a class="button-ghost" href="./assets.html">取消</a>
+                    </div>
+                    <div class="footer-actions__group">
+                        <a class="button-secondary" href="#">保存草稿</a>
+                        <a class="button" href="./jobs.html">提交并查看作业</a>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+<script src="./prototype.js"></script>
+</body>
+</html>

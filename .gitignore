@@ -301,3 +301,11 @@ Temporary Items
 .qwen
 skill*!/.cache/
 !/.github/
+
+# Project-local tool caches and agent runtime state
+/.cache/
+/.agents/
+skills-lock.json
+
+# TypeScript incremental build metadata
+*.tsbuildinfo
