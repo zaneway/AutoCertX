@@ -340,6 +340,45 @@ func (s *Service) ListCertificateAssets(scope resource.Scope, domainID string) (
 	return append([]CertificateAssetRef(nil), s.certsByDomain[domainID]...), nil
 }
 
+// LinkCertificateAsset upserts one certificate reference into the domain view.
+func (s *Service) LinkCertificateAsset(scope resource.Scope, domainID string, ref CertificateAssetRef) error {
+	if _, err := s.Get(scope, domainID); err != nil {
+		return err
+	}
+	if strings.TrimSpace(ref.ID) == "" {
+		return fmt.Errorf("certificate asset id required: %w", resource.ErrValidation)
+	}
+	if strings.TrimSpace(ref.Name) == "" {
+		return fmt.Errorf("certificate asset name required: %w", resource.ErrValidation)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	items := s.certsByDomain[domainID]
+	for idx := range items {
+		if items[idx].ID != ref.ID {
+			continue
+		}
+		items[idx] = CertificateAssetRef{
+			ID:        strings.TrimSpace(ref.ID),
+			Name:      strings.TrimSpace(ref.Name),
+			Status:    strings.TrimSpace(ref.Status),
+			ExpiresAt: ref.ExpiresAt,
+		}
+		s.certsByDomain[domainID] = items
+		return nil
+	}
+
+	s.certsByDomain[domainID] = append(items, CertificateAssetRef{
+		ID:        strings.TrimSpace(ref.ID),
+		Name:      strings.TrimSpace(ref.Name),
+		Status:    strings.TrimSpace(ref.Status),
+		ExpiresAt: ref.ExpiresAt,
+	})
+	return nil
+}
+
 func validateInput(input UpsertInput) (string, string, bool, error) {
 	name := normalizeDomain(input.Name)
 	if name == "" {

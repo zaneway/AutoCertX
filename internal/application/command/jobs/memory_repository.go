@@ -351,6 +351,23 @@ func (r *MemoryRepository) Get(_ context.Context, jobID string) (job.Job, error)
 	return cloneJob(record), nil
 }
 
+func (r *MemoryRepository) GetByIdempotency(_ context.Context, idempotencyKey string) (job.Job, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	jobID, ok := r.idempotency[strings.TrimSpace(idempotencyKey)]
+	if !ok {
+		return job.Job{}, job.ErrJobNotFound
+	}
+
+	record, ok := r.jobs[jobID]
+	if !ok {
+		return job.Job{}, job.ErrJobNotFound
+	}
+
+	return cloneJob(record), nil
+}
+
 func (r *MemoryRepository) Attempts(_ context.Context, jobID string) ([]job.Attempt, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

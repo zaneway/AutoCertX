@@ -72,6 +72,7 @@ type Repository interface {
 	ReapExpired(context.Context, ReapParams) ([]ReapedLease, error)
 	List(context.Context, resource.Scope) ([]job.Job, error)
 	Get(context.Context, string) (job.Job, error)
+	GetByIdempotency(context.Context, string) (job.Job, error)
 	Attempts(context.Context, string) ([]job.Attempt, error)
 }
 
@@ -349,6 +350,11 @@ func (s *Service) ReapExpired(ctx context.Context, limit int, now time.Time) ([]
 // Get returns one job by id.
 func (s *Service) Get(ctx context.Context, jobID string) (job.Job, error) {
 	return s.repo.Get(ctx, jobID)
+}
+
+// GetByIdempotency returns one job by idempotency key.
+func (s *Service) GetByIdempotency(ctx context.Context, idempotencyKey string) (job.Job, error) {
+	return s.repo.GetByIdempotency(ctx, idempotencyKey)
 }
 
 // Attempts returns the execution history of one job.

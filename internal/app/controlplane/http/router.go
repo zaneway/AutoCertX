@@ -8,6 +8,7 @@ import (
 	"github.com/zaneway/AutoCertX/internal/app/controlplane/middleware"
 	authcommand "github.com/zaneway/AutoCertX/internal/application/command/auth"
 	caaccountscmd "github.com/zaneway/AutoCertX/internal/application/command/caaccounts"
+	certificateassetscmd "github.com/zaneway/AutoCertX/internal/application/command/certificateassets"
 	domainscmd "github.com/zaneway/AutoCertX/internal/application/command/domains"
 	nodescmd "github.com/zaneway/AutoCertX/internal/application/command/nodes"
 	settingscmd "github.com/zaneway/AutoCertX/internal/application/command/settings"
@@ -30,6 +31,7 @@ type Deps struct {
 	Logger            *slog.Logger
 	AuthService       *authcommand.Service
 	AuthContextQuery  *authcontextquery.Service
+	CertificateAssets *certificateassetscmd.Service
 	DomainCommands    *domainscmd.Service
 	CAAccountCommands *caaccountscmd.Service
 	NodeCommands      *nodescmd.Service
@@ -79,6 +81,7 @@ func NewRouter(deps Deps) http.Handler {
 		})
 	}
 	registerGovernanceRoutes(mux, deps)
+	registerCertificateAssetRoutes(mux, deps)
 	registerDeliveryRoutes(mux, deps)
 	registerAuditSettingsRoutes(mux, deps)
 	registerRuntimeQueryRoutes(mux, deps)

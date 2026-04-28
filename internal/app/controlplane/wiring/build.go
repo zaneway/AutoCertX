@@ -7,6 +7,7 @@ import (
 
 	controlplanehttp "github.com/zaneway/AutoCertX/internal/app/controlplane/http"
 	caaccountscmd "github.com/zaneway/AutoCertX/internal/application/command/caaccounts"
+	certificateassetscmd "github.com/zaneway/AutoCertX/internal/application/command/certificateassets"
 	domainscmd "github.com/zaneway/AutoCertX/internal/application/command/domains"
 	jobscmd "github.com/zaneway/AutoCertX/internal/application/command/jobs"
 	nodescmd "github.com/zaneway/AutoCertX/internal/application/command/nodes"
@@ -19,15 +20,21 @@ import (
 	settingsquery "github.com/zaneway/AutoCertX/internal/application/query/settings"
 	"github.com/zaneway/AutoCertX/internal/domain/agentnode"
 	auditdomain "github.com/zaneway/AutoCertX/internal/domain/audit"
+	certificateasset "github.com/zaneway/AutoCertX/internal/domain/certificateasset"
+	certificaterequest "github.com/zaneway/AutoCertX/internal/domain/certificaterequest"
 	"github.com/zaneway/AutoCertX/internal/domain/deploymenttarget"
 	"github.com/zaneway/AutoCertX/internal/domain/dnscredentials"
 	"github.com/zaneway/AutoCertX/internal/domain/domains"
 	"github.com/zaneway/AutoCertX/internal/domain/issuer"
+	issueworkflow "github.com/zaneway/AutoCertX/internal/domain/issueworkflow"
 	settingsdomain "github.com/zaneway/AutoCertX/internal/domain/settings"
+	acmedriver "github.com/zaneway/AutoCertX/internal/driver/acme"
+	dnsdriver "github.com/zaneway/AutoCertX/internal/driver/dns"
 	"github.com/zaneway/AutoCertX/internal/platform/buildinfo"
 	"github.com/zaneway/AutoCertX/internal/platform/config"
 	"github.com/zaneway/AutoCertX/internal/platform/logging"
 	"github.com/zaneway/AutoCertX/internal/platform/runtime"
+	workflowservice "github.com/zaneway/AutoCertX/internal/workflow"
 )
 
 // Options controls dependency construction for the control plane process.
@@ -68,11 +75,32 @@ func Build(opts Options) (Result, error) {
 	domainService := domains.NewService()
 	dnsService := dnscredentials.NewService()
 	issuerService := issuer.NewService()
+	requestService := certificaterequest.NewService()
+	assetService := certificateasset.NewService()
+	workflowDomainService := issueworkflow.NewService()
 	nodeService := agentnode.NewService()
 	targetService := deploymenttarget.NewService()
 	auditService := auditdomain.NewService()
 	settingsService := settingsdomain.NewService()
 	jobRepo := jobscmd.NewMemoryRepository()
+	jobsService, err := jobscmd.NewService(jobRepo, jobscmd.Options{})
+	if err != nil {
+		return Result{}, fmt.Errorf("build jobs service: %w", err)
+	}
+	workflowCommandService, err := workflowservice.NewService(
+		requestService,
+		workflowDomainService,
+		assetService,
+		domainService,
+		issuerService,
+		jobsService,
+		acmedriver.NewFakeClient(),
+		dnsdriver.NewFakeExecutor(),
+		workflowservice.FakeHTTP01Presenter{},
+	)
+	if err != nil {
+		return Result{}, fmt.Errorf("build workflow service: %w", err)
+	}
 	governanceQuery, err := domainsquery.NewService(domainService, dnsService, issuerService)
 	if err != nil {
 		return Result{}, fmt.Errorf("build governance query: %w", err)
@@ -95,6 +123,7 @@ func Build(opts Options) (Result, error) {
 		Logger:            logger,
 		AuthService:       authService,
 		AuthContextQuery:  authContextService,
+		CertificateAssets: certificateassetscmd.NewService(workflowCommandService),
 		DomainCommands:    domainscmd.NewService(domainService, dnsService, domainsAuditRecorder{audit: auditService}),
 		CAAccountCommands: caaccountscmd.NewService(issuerService),
 		NodeCommands:      nodescmd.NewService(nodeService),

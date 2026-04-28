@@ -24,7 +24,7 @@
   - `Wave 1` 已完成
   - `Wave 2` 已完成
   - `Wave 3` 进行中
-  - 其中 `T03`、`T04`、`T05`、`T06`、`T13` 已完成基线实现，`T07` Phase A 已完成并通过门禁，`T08/T09` 处于契约冻结切片推进中
+  - 其中 `T03`、`T04`、`T05`、`T06`、`T13` 已完成基线实现，`T07` Phase A 已完成并通过门禁，`T08` Phase A 已完成并形成最小闭环基线，`T09` 继续推进 Phase A 剩余 Agent 传输适配
 
 ## 1. 文档目标
 
@@ -322,7 +322,7 @@ flowchart LR
 | `T05` | Job、Lease 与 Scheduler      | `Wave 2` | 已完成 | `job` 域模型、planner/worker/reaper、PostgreSQL `SKIP LOCKED` 仓储、数据库级集成验证与 `make ci-task-T05` 已落地并通过 |
 | `T06` | 审计、证据、系统设置与 Webhook       | `Wave 2` | 已完成 | 审计域/设置域、`/api/v1/audit-events*` 与 `/api/v1/settings/*`、同步 CSV 导出产物、导出记录与 Webhook 状态跟踪、`make ci-task-T06` 基线已落地 |
 | `T07` | 聚合查询层与控制台读模型               | `Wave 3` | Phase A 已完成 | Phase A 已落地 `dashboard/jobs/domains/settings` 四个 query 模块、控制面 GET 路由切换到 query service、`make test-integration-query` 与 `make ci-task-T07` 基线已补齐，`assets/delivery/discoveries` 与依赖真实资产/发现事实的查询延后到后续任务 |
-| `T08` | ACME、签发工作流与 Challenge 编排   | `Wave 3` | 契约冻结中 | 已启动与 `T09` 共用的 OpenAPI 契约切片，冻结生命周期枚举、证书申请幂等键、内部/Agent job type 基线 |
+| `T08` | ACME、签发工作流与 Challenge 编排   | `Wave 3` | Phase A 已完成 | 已落地 `certificaterequest / issueworkflow / certificateasset` 三个领域基线、fake `ACME/DNS/HTTP-01` 适配器、`start_issue_workflow / continue_issue_workflow` 编排、`/api/v1/certificate-assets/requests` 与 `/api/v1/certificate-assets/{assetId}/renew` 写入口、`make ci-task-T08` 门禁基线；真实 `Let's Encrypt + AliDNS + Agent HTTP-01` 作为 Phase B backlog |
 | `T09` | Agent 管理、部署目标治理与协议         | `Wave 3` | Phase A 进行中 | 已启动与 `T08` 共用的 OpenAPI 契约切片，冻结 Agent 能力码、节点状态、Agent job envelope 与结果回传字段；已落地 `agentnode`、`deploymenttarget`、`command/nodes`、`command/targets` 与 `/api/v1/nodes*`、`/api/v1/deployment-targets*` API 基线，`make ci-task-T09` 可执行并通过 |
 | `T10` | NGINX 部署与验证                | `Wave 4` | 未开始 | 等待执行 |
 | `T11` | Tomcat 部署与验证               | `Wave 4` | 未开始 | 等待执行 |
@@ -654,6 +654,19 @@ flowchart LR
   - `IssueWorkflowStatus` 与 `WorkflowChallengeStatus` 已按详细设计状态机冻结
   - `CertificateRequestCreateRequest` 已要求 `idempotency_key`
   - `PlatformJobType` 已包含 `start_issue_workflow`、`continue_issue_workflow`、`renewal_scan`、`discovery_scan` 与 Agent 下发类任务
+- 当前 Phase A 已完成：
+  - `internal/domain/certificaterequest/` 已落地申请单主事实、域名关联、幂等键约束与 `submitted/accepted/running/completed/failed` 状态流转
+  - `internal/domain/issueworkflow/` 已落地主状态机、`workflow_challenges` 子状态机、order/finalize 事实与失败信息记录
+  - `internal/domain/certificateasset/` 已落地最小资产与版本基线，支持首次签发创建资产、续期追加版本
+  - `internal/workflow/` 已落地 `SubmitRequest / RenewAsset / ProcessJob` 编排，接入 `start_issue_workflow` 与 `continue_issue_workflow` 两类平台 job
+  - `internal/driver/acme/`、`internal/driver/dns/` 已落地 fake adapter，支撑 `DNS-01` 传播重试、challenge verify 轮询与 finalize/download 假实现
+  - 控制面已接入 `POST /api/v1/certificate-assets/requests` 与 `POST /api/v1/certificate-assets/{assetId}/renew`
+  - `Makefile` 已补齐 `test-issuance`、`test-integration-acme` 与 `ci-task-T08`
+- Phase B 明确后续：
+  - 真实 `Let's Encrypt` adapter
+  - 真实 `AliDNS` adapter
+  - 真实 Agent 侧 `HTTP-01` challenge 呈现与清理
+  - staging 联调与 E2E 验证
 
 ### T09 AgentHub 与 Agent 协议
 

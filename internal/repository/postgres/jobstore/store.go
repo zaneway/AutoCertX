@@ -563,6 +563,11 @@ WHERE id = $1`,
 	return record, nil
 }
 
+// GetByIdempotency returns one job by idempotency key.
+func (s *Store) GetByIdempotency(ctx context.Context, idempotencyKey string) (job.Job, error) {
+	return s.getByIdempotencyKey(ctx, strings.TrimSpace(idempotencyKey))
+}
+
 func (s *Store) Attempts(ctx context.Context, jobID string) ([]job.Attempt, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT id, job_id, attempt_no, worker_id, agent_id, started_at, last_heartbeat_at,
