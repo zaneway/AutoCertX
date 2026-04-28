@@ -19,6 +19,7 @@ import (
 	domainsquery "github.com/zaneway/AutoCertX/internal/application/query/domains"
 	jobsquery "github.com/zaneway/AutoCertX/internal/application/query/jobs"
 	settingsquery "github.com/zaneway/AutoCertX/internal/application/query/settings"
+	"github.com/zaneway/AutoCertX/internal/driver/agenttransport"
 	"github.com/zaneway/AutoCertX/internal/platform/buildinfo"
 	"github.com/zaneway/AutoCertX/internal/platform/config"
 	"github.com/zaneway/AutoCertX/internal/platform/httpx"
@@ -31,6 +32,7 @@ type Deps struct {
 	Logger            *slog.Logger
 	AuthService       *authcommand.Service
 	AuthContextQuery  *authcontextquery.Service
+	AgentTransport    *agenttransport.Service
 	CertificateAssets *certificateassetscmd.Service
 	DomainCommands    *domainscmd.Service
 	CAAccountCommands *caaccountscmd.Service
@@ -83,6 +85,7 @@ func NewRouter(deps Deps) http.Handler {
 	registerGovernanceRoutes(mux, deps)
 	registerCertificateAssetRoutes(mux, deps)
 	registerDeliveryRoutes(mux, deps)
+	registerAgentTransportRoutes(mux, deps)
 	registerAuditSettingsRoutes(mux, deps)
 	registerRuntimeQueryRoutes(mux, deps)
 

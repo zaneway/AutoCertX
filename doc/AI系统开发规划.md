@@ -24,7 +24,7 @@
   - `Wave 1` 已完成
   - `Wave 2` 已完成
   - `Wave 3` 进行中
-  - 其中 `T03`、`T04`、`T05`、`T06`、`T13` 已完成基线实现，`T07` Phase A 已完成并通过门禁，`T08` Phase A 已完成并形成最小闭环基线，`T09` 继续推进 Phase A 剩余 Agent 传输适配
+  - 其中 `T03`、`T04`、`T05`、`T06`、`T13` 已完成基线实现，`T07` Phase A 已完成并通过门禁，`T08` Phase A 已完成并形成最小闭环基线，`T09` Phase A 已完成并补齐 Agent 传输闭环
 
 ## 1. 文档目标
 
@@ -323,7 +323,7 @@ flowchart LR
 | `T06` | 审计、证据、系统设置与 Webhook       | `Wave 2` | 已完成 | 审计域/设置域、`/api/v1/audit-events*` 与 `/api/v1/settings/*`、同步 CSV 导出产物、导出记录与 Webhook 状态跟踪、`make ci-task-T06` 基线已落地 |
 | `T07` | 聚合查询层与控制台读模型               | `Wave 3` | Phase A 已完成 | Phase A 已落地 `dashboard/jobs/domains/settings` 四个 query 模块、控制面 GET 路由切换到 query service、`make test-integration-query` 与 `make ci-task-T07` 基线已补齐，`assets/delivery/discoveries` 与依赖真实资产/发现事实的查询延后到后续任务 |
 | `T08` | ACME、签发工作流与 Challenge 编排   | `Wave 3` | Phase A 已完成 | 已落地 `certificaterequest / issueworkflow / certificateasset` 三个领域基线、fake `ACME/DNS/HTTP-01` 适配器、`start_issue_workflow / continue_issue_workflow` 编排、`/api/v1/certificate-assets/requests` 与 `/api/v1/certificate-assets/{assetId}/renew` 写入口、`make ci-task-T08` 门禁基线；真实 `Let's Encrypt + AliDNS + Agent HTTP-01` 作为 Phase B backlog |
-| `T09` | Agent 管理、部署目标治理与协议         | `Wave 3` | Phase A 进行中 | 已启动与 `T08` 共用的 OpenAPI 契约切片，冻结 Agent 能力码、节点状态、Agent job envelope 与结果回传字段；已落地 `agentnode`、`deploymenttarget`、`command/nodes`、`command/targets` 与 `/api/v1/nodes*`、`/api/v1/deployment-targets*` API 基线，`make ci-task-T09` 可执行并通过 |
+| `T09` | Agent 管理、部署目标治理与协议         | `Wave 3` | Phase A 已完成 | 已冻结 Agent 能力码、节点状态、Agent job envelope 与结果回传字段；已落地 `agentnode`、`deploymenttarget`、`command/nodes`、`command/targets`、`driver/agenttransport`、`agent/bootstrap`，补齐 `/api/v1/nodes*`、`/api/v1/deployment-targets*` 与 `/agent/v1/*` 五个 transport 端点，`make ci-task-T09` 可执行并通过 |
 | `T10` | NGINX 部署与验证                | `Wave 4` | 未开始 | 等待执行 |
 | `T11` | Tomcat 部署与验证               | `Wave 4` | 未开始 | 等待执行 |
 | `T12` | 发现与认领                      | `Wave 4` | 未开始 | 等待执行 |
@@ -701,13 +701,13 @@ flowchart LR
   - `AgentJobType` 已冻结 Agent 可执行任务类型，不包含 `DNS-01`，避免 DNS 凭据下沉到 Agent
   - `AgentJob` 与回传请求已要求携带 `schema_version` 和 `operation_id`，支撑幂等执行、重复回传去重和排障关联
 - 当前 Phase A 已完成：
-  - `internal/domain/agentnode/` 已落地 Agent 注册事实、心跳事实、能力校验、标签更新、禁用和能力匹配
+  - `internal/domain/agentnode/` 已落地 Agent 注册事实、心跳事实、能力校验、标签更新、禁用和能力匹配，并补齐注册 token、无 scope lookup 与按名称回查能力
   - `internal/domain/deploymenttarget/` 已落地 NGINX 与 Tomcat(JSSE + PKCS12) 部署目标治理、节点绑定/选择器和类型化字段校验
-  - `internal/application/command/nodes/` 与 `internal/application/command/targets/` 已落地 command 服务和应用层错误映射
-  - 控制面已接入 `/api/v1/nodes*`、`/api/v1/deployment-targets*` 治理 API 与 `TestDelivery*` 集成测试
-  - `Makefile` 已补齐 `test-agenthub`、`test-integration-agenthub` 与 `ci-task-T09`，当前门禁覆盖 domain、command、HTTP 和 OpenAPI 契约
-- Phase A 后续：
-  - 补 Agent 侧 `/agent/v1/register`、`heartbeat`、`jobs/poll`、`progress`、`complete` 传输适配
+  - `internal/application/command/nodes/` 与 `internal/application/command/targets/` 已落地 command 服务和应用层错误映射，并暴露注册 token 解析与节点 lookup 辅助接口
+  - `internal/driver/agenttransport/` 已落地 pull 模式 transport baseline，支持 `register / heartbeat / jobs/poll / progress / complete`、`schema_version` 协商、`operation_id` 幂等与内存分发闭环
+  - `internal/agent/bootstrap/` 已落地 Agent 侧 transport client，覆盖注册、心跳、拉任务、进度回传与完成回传
+  - 控制面已接入 `/api/v1/nodes*`、`/api/v1/deployment-targets*` 治理 API，以及 `/agent/v1/register`、`/agent/v1/heartbeat`、`/agent/v1/jobs/poll`、`/agent/v1/jobs/{jobId}/progress`、`/agent/v1/jobs/{jobId}/complete`
+  - `Makefile` 已扩展 `test-agenthub`、`test-integration-agenthub` 与 `ci-task-T09`，当前门禁覆盖 domain、command、transport、HTTP、bootstrap client 与 OpenAPI 契约
 
 ### T10 NGINX 部署与验证
 

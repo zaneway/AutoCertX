@@ -3,25 +3,16 @@ package nodes
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/zaneway/AutoCertX/internal/domain/agentnode"
 	"github.com/zaneway/AutoCertX/internal/domain/resource"
 	"github.com/zaneway/AutoCertX/internal/platform/apperr"
-	"github.com/zaneway/AutoCertX/internal/platform/uuidx"
 )
 
 // RegistrationToken represents an operator-created Agent bootstrap token.
-type RegistrationToken struct {
-	ID        string         `json:"id"`
-	Scope     resource.Scope `json:"-"`
-	Token     string         `json:"token"`
-	ExpiresAt time.Time      `json:"expires_at"`
-	CreatedAt time.Time      `json:"created_at"`
-}
+type RegistrationToken = agentnode.RegistrationToken
 
 // LabelUpdateInput replaces one node's operator-managed labels.
 type LabelUpdateInput struct {
@@ -37,18 +28,12 @@ type HeartbeatInput = agentnode.HeartbeatInput
 // Service orchestrates Agent node governance commands.
 type Service struct {
 	nodes *agentnode.Service
-	now   func() time.Time
-	newID func() string
 }
 
 // NewService constructs the Agent node command service.
 func NewService(nodeService *agentnode.Service) *Service {
 	return &Service{
 		nodes: nodeService,
-		now: func() time.Time {
-			return time.Now().UTC()
-		},
-		newID: uuidx.New,
 	}
 }
 
@@ -73,6 +58,24 @@ func (s *Service) GetNode(_ context.Context, scope resource.Scope, id string) (a
 // RegisterNode creates or accepts one node after a registration token exchange.
 func (s *Service) RegisterNode(_ context.Context, scope resource.Scope, input RegistrationInput) (agentnode.Node, error) {
 	node, err := s.nodes.Register(scope, input)
+	if err != nil {
+		return agentnode.Node{}, translateNodeError(err)
+	}
+	return node, nil
+}
+
+// LookupNode resolves one node without the caller pre-resolving its scope.
+func (s *Service) LookupNode(_ context.Context, id string) (agentnode.Node, error) {
+	node, err := s.nodes.Lookup(strings.TrimSpace(id))
+	if err != nil {
+		return agentnode.Node{}, translateNodeError(err)
+	}
+	return node, nil
+}
+
+// FindNodeByName resolves one node by environment-scoped name.
+func (s *Service) FindNodeByName(_ context.Context, scope resource.Scope, name string) (agentnode.Node, error) {
+	node, err := s.nodes.FindByName(scope, strings.TrimSpace(name))
 	if err != nil {
 		return agentnode.Node{}, translateNodeError(err)
 	}
@@ -110,19 +113,20 @@ func (s *Service) DisableNode(_ context.Context, scope resource.Scope, id string
 
 // CreateRegistrationToken creates a short-lived bootstrap token.
 func (s *Service) CreateRegistrationToken(_ context.Context, scope resource.Scope) (RegistrationToken, error) {
-	if err := scope.Validate(); err != nil {
+	token, err := s.nodes.CreateRegistrationToken(scope)
+	if err != nil {
 		return RegistrationToken{}, translateNodeError(err)
 	}
+	return token, nil
+}
 
-	now := s.now()
-	id := s.newID()
-	return RegistrationToken{
-		ID:        id,
-		Scope:     scope,
-		Token:     fmt.Sprintf("acx_%s", strings.ReplaceAll(id, "-", "")),
-		ExpiresAt: now.Add(24 * time.Hour),
-		CreatedAt: now,
-	}, nil
+// ResolveRegistrationToken validates one previously issued bootstrap token.
+func (s *Service) ResolveRegistrationToken(_ context.Context, token string) (RegistrationToken, error) {
+	record, err := s.nodes.ResolveRegistrationToken(strings.TrimSpace(token))
+	if err != nil {
+		return RegistrationToken{}, translateNodeError(err)
+	}
+	return record, nil
 }
 
 func translateNodeError(err error) error {

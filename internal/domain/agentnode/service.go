@@ -50,6 +50,15 @@ type Node struct {
 	UpdatedAt       time.Time         `json:"updated_at"`
 }
 
+// RegistrationToken authorizes one Agent bootstrap exchange within one scope.
+type RegistrationToken struct {
+	ID        string         `json:"id"`
+	Scope     resource.Scope `json:"-"`
+	Token     string         `json:"token"`
+	ExpiresAt time.Time      `json:"expires_at"`
+	CreatedAt time.Time      `json:"created_at"`
+}
+
 // RegistrationInput contains the first registration facts reported by an Agent.
 type RegistrationInput struct {
 	Name            string
@@ -83,6 +92,7 @@ type Service struct {
 	newID     func() string
 	byID      map[string]Node
 	byEnvName map[string]string
+	byToken   map[string]RegistrationToken
 }
 
 // NewService constructs an in-memory Agent node service.
@@ -94,6 +104,7 @@ func NewService() *Service {
 		newID:     uuidx.New,
 		byID:      make(map[string]Node),
 		byEnvName: make(map[string]string),
+		byToken:   make(map[string]RegistrationToken),
 	}
 }
 
@@ -144,6 +155,44 @@ func (s *Service) Get(scope resource.Scope, id string) (Node, error) {
 	return cloneNode(node), nil
 }
 
+// Lookup returns one node without requiring the caller to pre-resolve scope.
+func (s *Service) Lookup(id string) (Node, error) {
+	if strings.TrimSpace(id) == "" {
+		return Node{}, fmt.Errorf("node id required: %w", resource.ErrValidation)
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	node, ok := s.byID[id]
+	if !ok {
+		return Node{}, fmt.Errorf("node %s: %w", id, resource.ErrNotFound)
+	}
+
+	return cloneNode(node), nil
+}
+
+// FindByName returns one node under the given scope and environment-local name.
+func (s *Service) FindByName(scope resource.Scope, name string) (Node, error) {
+	if err := scope.Validate(); err != nil {
+		return Node{}, err
+	}
+	normalizedName := strings.TrimSpace(name)
+	if normalizedName == "" {
+		return Node{}, fmt.Errorf("node_name required: %w", resource.ErrValidation)
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	id, ok := s.byEnvName[scope.EnvironmentKey()+"/"+normalizedName]
+	if !ok {
+		return Node{}, fmt.Errorf("node %q: %w", normalizedName, resource.ErrNotFound)
+	}
+	node := s.byID[id]
+	return cloneNode(node), nil
+}
+
 // Register creates a node from a registration token exchange.
 func (s *Service) Register(scope resource.Scope, input RegistrationInput) (Node, error) {
 	if err := scope.Validate(); err != nil {
@@ -183,6 +232,50 @@ func (s *Service) Register(scope resource.Scope, input RegistrationInput) (Node,
 	s.byID[node.ID] = node
 	s.byEnvName[envKey] = node.ID
 	return cloneNode(node), nil
+}
+
+// CreateRegistrationToken issues one bootstrap token scoped to one environment.
+func (s *Service) CreateRegistrationToken(scope resource.Scope) (RegistrationToken, error) {
+	if err := scope.Validate(); err != nil {
+		return RegistrationToken{}, err
+	}
+
+	now := s.now()
+	id := s.newID()
+	token := RegistrationToken{
+		ID:        id,
+		Scope:     scope,
+		Token:     fmt.Sprintf("acx_%s", strings.ReplaceAll(id, "-", "")),
+		ExpiresAt: now.Add(24 * time.Hour),
+		CreatedAt: now,
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.byToken[token.Token] = token
+
+	return token, nil
+}
+
+// ResolveRegistrationToken validates and loads one stored bootstrap token.
+func (s *Service) ResolveRegistrationToken(token string) (RegistrationToken, error) {
+	trimmed := strings.TrimSpace(token)
+	if trimmed == "" {
+		return RegistrationToken{}, fmt.Errorf("token required: %w", resource.ErrValidation)
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	record, ok := s.byToken[trimmed]
+	if !ok {
+		return RegistrationToken{}, fmt.Errorf("registration token not found: %w", resource.ErrNotFound)
+	}
+	if !record.ExpiresAt.After(s.now()) {
+		return RegistrationToken{}, fmt.Errorf("registration token expired: %w", resource.ErrUnavailable)
+	}
+
+	return record, nil
 }
 
 // Heartbeat updates runtime liveness and capability facts for one node.
@@ -306,11 +399,10 @@ func validateRegistration(input RegistrationInput) error {
 	if strings.TrimSpace(input.Name) == "" {
 		return fmt.Errorf("node_name required: %w", resource.ErrValidation)
 	}
-	if strings.TrimSpace(input.Hostname) == "" {
-		return fmt.Errorf("hostname required: %w", resource.ErrValidation)
-	}
-	if _, err := netip.ParseAddr(strings.TrimSpace(input.IPAddress)); err != nil {
-		return fmt.Errorf("ip_address invalid: %w", resource.ErrValidation)
+	if ipAddress := strings.TrimSpace(input.IPAddress); ipAddress != "" {
+		if _, err := netip.ParseAddr(ipAddress); err != nil {
+			return fmt.Errorf("ip_address invalid: %w", resource.ErrValidation)
+		}
 	}
 	if strings.TrimSpace(input.Version) == "" {
 		return fmt.Errorf("version required: %w", resource.ErrValidation)
@@ -318,15 +410,11 @@ func validateRegistration(input RegistrationInput) error {
 	if input.ProtocolVersion < MinimumSupportedProtocolVersion {
 		return fmt.Errorf("protocol_version unsupported: %w", resource.ErrValidation)
 	}
-	if strings.TrimSpace(input.OS) == "" {
-		return fmt.Errorf("os required: %w", resource.ErrValidation)
-	}
-	if strings.TrimSpace(input.Arch) == "" {
-		return fmt.Errorf("arch required: %w", resource.ErrValidation)
-	}
-	capabilities := normalizeCapabilities(input.Capabilities)
-	if len(capabilities) == 0 || len(capabilities) != len(input.Capabilities) {
-		return fmt.Errorf("capabilities invalid: %w", resource.ErrValidation)
+	if len(input.Capabilities) > 0 {
+		capabilities := normalizeCapabilities(input.Capabilities)
+		if len(capabilities) != len(input.Capabilities) {
+			return fmt.Errorf("capabilities invalid: %w", resource.ErrValidation)
+		}
 	}
 	return nil
 }
@@ -338,9 +426,11 @@ func validateHeartbeat(input HeartbeatInput) error {
 	if !validHeartbeatStatus(input.Status) {
 		return fmt.Errorf("status invalid: %w", resource.ErrValidation)
 	}
-	capabilities := normalizeCapabilities(input.Capabilities)
-	if len(capabilities) == 0 || len(capabilities) != len(input.Capabilities) {
-		return fmt.Errorf("capabilities invalid: %w", resource.ErrValidation)
+	if len(input.Capabilities) > 0 {
+		capabilities := normalizeCapabilities(input.Capabilities)
+		if len(capabilities) != len(input.Capabilities) {
+			return fmt.Errorf("capabilities invalid: %w", resource.ErrValidation)
+		}
 	}
 	return nil
 }

@@ -121,6 +121,61 @@ func TestRegisterRejectsUnknownCapabilities(t *testing.T) {
 	}
 }
 
+func TestRegistrationTokenResolveAndLookup(t *testing.T) {
+	service := NewService()
+	scope := testScope()
+
+	token, err := service.CreateRegistrationToken(scope)
+	if err != nil {
+		t.Fatalf("create registration token: %v", err)
+	}
+
+	resolved, err := service.ResolveRegistrationToken(token.Token)
+	if err != nil {
+		t.Fatalf("resolve registration token: %v", err)
+	}
+	if !resolved.Scope.Equals(scope) {
+		t.Fatalf("resolved scope = %+v, want %+v", resolved.Scope, scope)
+	}
+
+	node, err := service.Register(scope, validRegistration())
+	if err != nil {
+		t.Fatalf("register node: %v", err)
+	}
+
+	lookup, err := service.Lookup(node.ID)
+	if err != nil {
+		t.Fatalf("lookup node: %v", err)
+	}
+	if lookup.ID != node.ID {
+		t.Fatalf("lookup id = %q, want %q", lookup.ID, node.ID)
+	}
+
+	found, err := service.FindByName(scope, node.Name)
+	if err != nil {
+		t.Fatalf("find node by name: %v", err)
+	}
+	if found.ID != node.ID {
+		t.Fatalf("find by name id = %q, want %q", found.ID, node.ID)
+	}
+}
+
+func TestRegisterAllowsSparseTransportPayload(t *testing.T) {
+	service := NewService()
+
+	node, err := service.Register(testScope(), RegistrationInput{
+		Name:            "edge-agent-b",
+		Version:         "0.2.0",
+		ProtocolVersion: 1,
+	})
+	if err != nil {
+		t.Fatalf("register sparse payload: %v", err)
+	}
+	if node.Name != "edge-agent-b" {
+		t.Fatalf("node name = %q, want edge-agent-b", node.Name)
+	}
+}
+
 func validRegistration() RegistrationInput {
 	return RegistrationInput{
 		Name:            "edge-agent-a",

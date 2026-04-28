@@ -29,6 +29,7 @@ import (
 	issueworkflow "github.com/zaneway/AutoCertX/internal/domain/issueworkflow"
 	settingsdomain "github.com/zaneway/AutoCertX/internal/domain/settings"
 	acmedriver "github.com/zaneway/AutoCertX/internal/driver/acme"
+	agenttransportdriver "github.com/zaneway/AutoCertX/internal/driver/agenttransport"
 	dnsdriver "github.com/zaneway/AutoCertX/internal/driver/dns"
 	"github.com/zaneway/AutoCertX/internal/platform/buildinfo"
 	"github.com/zaneway/AutoCertX/internal/platform/config"
@@ -101,6 +102,10 @@ func Build(opts Options) (Result, error) {
 	if err != nil {
 		return Result{}, fmt.Errorf("build workflow service: %w", err)
 	}
+	agentTransportService, err := agenttransportdriver.NewService(nodeService, agenttransportdriver.Options{})
+	if err != nil {
+		return Result{}, fmt.Errorf("build agent transport service: %w", err)
+	}
 	governanceQuery, err := domainsquery.NewService(domainService, dnsService, issuerService)
 	if err != nil {
 		return Result{}, fmt.Errorf("build governance query: %w", err)
@@ -123,6 +128,7 @@ func Build(opts Options) (Result, error) {
 		Logger:            logger,
 		AuthService:       authService,
 		AuthContextQuery:  authContextService,
+		AgentTransport:    agentTransportService,
 		CertificateAssets: certificateassetscmd.NewService(workflowCommandService),
 		DomainCommands:    domainscmd.NewService(domainService, dnsService, domainsAuditRecorder{audit: auditService}),
 		CAAccountCommands: caaccountscmd.NewService(issuerService),
