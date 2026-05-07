@@ -23,6 +23,7 @@ func TestWorkerRunOnceCompletesJob(t *testing.T) {
 		AggregateType:  "environment",
 		AggregateID:    "env-1",
 		IdempotencyKey: "renewal:env-1",
+		NextRunAt:      now,
 		Now:            now,
 	})
 	if err != nil {

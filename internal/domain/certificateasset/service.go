@@ -146,6 +146,16 @@ func (s *Service) ListVersions(scope resource.Scope, assetID string) ([]Version,
 	return append([]Version(nil), s.versionsByAsset[assetID]...), nil
 }
 
+// MarkActive records that the asset is healthy after a successful deployment.
+func (s *Service) MarkActive(scope resource.Scope, assetID string) (Asset, error) {
+	return s.updateStatus(scope, assetID, StatusActive)
+}
+
+// MarkDeployFailed records that the current version failed to deploy.
+func (s *Service) MarkDeployFailed(scope resource.Scope, assetID string) (Asset, error) {
+	return s.updateStatus(scope, assetID, StatusDeployFail)
+}
+
 // UpsertIssued persists one issued certificate version and creates the asset on first issue.
 func (s *Service) UpsertIssued(scope resource.Scope, input IssueInput) (Asset, Version, bool, error) {
 	if err := scope.Validate(); err != nil {
@@ -233,6 +243,30 @@ func (s *Service) UpsertIssued(scope resource.Scope, input IssueInput) (Asset, V
 	s.byID[asset.ID] = cloneAsset(asset)
 	s.versionsByAsset[asset.ID] = append(versions, version)
 	return cloneAsset(asset), version, created, nil
+}
+
+func (s *Service) updateStatus(scope resource.Scope, assetID string, status string) (Asset, error) {
+	if err := scope.Validate(); err != nil {
+		return Asset{}, err
+	}
+	if strings.TrimSpace(assetID) == "" {
+		return Asset{}, fmt.Errorf("asset id required: %w", resource.ErrValidation)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	asset, ok := s.byID[assetID]
+	if !ok {
+		return Asset{}, fmt.Errorf("certificate asset %s: %w", assetID, resource.ErrNotFound)
+	}
+	if !asset.Scope.Equals(scope) {
+		return Asset{}, fmt.Errorf("certificate asset %s: %w", assetID, resource.ErrScopeMismatch)
+	}
+	asset.Status = status
+	asset.UpdatedAt = s.now()
+	s.byID[asset.ID] = cloneAsset(asset)
+	return cloneAsset(asset), nil
 }
 
 func normalizeIssueInput(input IssueInput) (IssueInput, error) {

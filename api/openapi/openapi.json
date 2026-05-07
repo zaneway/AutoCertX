@@ -426,6 +426,34 @@
         }
       }
     },
+    "/api/v1/certificate-assets/{assetId}/deploy": {
+      "post": {
+        "tags": ["certificate-assets"],
+        "operationId": "deployCertificateAssetVersion",
+        "summary": "Deploy a certificate asset version to one NGINX target",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/AssetID" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CertificateAssetDeployRequest" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Deployment accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DeploymentAcceptedEnvelope" }
+              }
+            }
+          },
+          "default": { "$ref": "#/components/responses/ErrorResponse" }
+        }
+      }
+    },
     "/api/v1/certificate-assets/{assetId}/discoveries": {
       "get": {
         "tags": ["certificate-assets"],
@@ -1558,6 +1586,16 @@
           "job_id": { "type": "string", "format": "uuid" }
         }
       },
+      "DeploymentAcceptedEnvelope": {
+        "type": "object",
+        "required": ["request_id", "status", "deployment_id", "job_id"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["accepted"] },
+          "deployment_id": { "type": "string", "format": "uuid" },
+          "job_id": { "type": "string", "format": "uuid" }
+        }
+      },
       "EmptyEnvelope": {
         "type": "object",
         "required": ["request_id", "status"],
@@ -1777,6 +1815,15 @@
             "type": "array",
             "items": { "type": "string", "format": "uuid" }
           }
+        }
+      },
+      "CertificateAssetDeployRequest": {
+        "type": "object",
+        "required": ["version_id", "target_id", "idempotency_key"],
+        "properties": {
+          "version_id": { "type": "string", "format": "uuid" },
+          "target_id": { "type": "string", "format": "uuid" },
+          "idempotency_key": { "type": "string", "minLength": 8, "maxLength": 128 }
         }
       },
       "CAAccountUpsertRequest": {

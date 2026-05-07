@@ -1,6 +1,7 @@
 package wiring
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -18,10 +19,12 @@ import (
 	domainsquery "github.com/zaneway/AutoCertX/internal/application/query/domains"
 	jobsquery "github.com/zaneway/AutoCertX/internal/application/query/jobs"
 	settingsquery "github.com/zaneway/AutoCertX/internal/application/query/settings"
+	deploymentservice "github.com/zaneway/AutoCertX/internal/deployment"
 	"github.com/zaneway/AutoCertX/internal/domain/agentnode"
 	auditdomain "github.com/zaneway/AutoCertX/internal/domain/audit"
 	certificateasset "github.com/zaneway/AutoCertX/internal/domain/certificateasset"
 	certificaterequest "github.com/zaneway/AutoCertX/internal/domain/certificaterequest"
+	"github.com/zaneway/AutoCertX/internal/domain/deploymentrecord"
 	"github.com/zaneway/AutoCertX/internal/domain/deploymenttarget"
 	"github.com/zaneway/AutoCertX/internal/domain/dnscredentials"
 	"github.com/zaneway/AutoCertX/internal/domain/domains"
@@ -81,6 +84,7 @@ func Build(opts Options) (Result, error) {
 	workflowDomainService := issueworkflow.NewService()
 	nodeService := agentnode.NewService()
 	targetService := deploymenttarget.NewService()
+	deploymentRecordService := deploymentrecord.NewService()
 	auditService := auditdomain.NewService()
 	settingsService := settingsdomain.NewService()
 	jobRepo := jobscmd.NewMemoryRepository()
@@ -102,9 +106,27 @@ func Build(opts Options) (Result, error) {
 	if err != nil {
 		return Result{}, fmt.Errorf("build workflow service: %w", err)
 	}
-	agentTransportService, err := agenttransportdriver.NewService(nodeService, agenttransportdriver.Options{})
+	var deploymentService *deploymentservice.Service
+	agentTransportService, err := agenttransportdriver.NewService(nodeService, agenttransportdriver.Options{
+		ProgressCallback: func(ctx context.Context, req agenttransportdriver.JobProgressRequest) error {
+			if deploymentService == nil {
+				return nil
+			}
+			return deploymentService.HandleAgentProgress(ctx, req)
+		},
+		CompletionCallback: func(ctx context.Context, req agenttransportdriver.JobCompleteRequest) error {
+			if deploymentService == nil {
+				return nil
+			}
+			return deploymentService.HandleAgentComplete(ctx, req)
+		},
+	})
 	if err != nil {
 		return Result{}, fmt.Errorf("build agent transport service: %w", err)
+	}
+	deploymentService, err = deploymentservice.NewService(assetService, targetService, nodeService, deploymentRecordService, agentTransportService, auditService)
+	if err != nil {
+		return Result{}, fmt.Errorf("build deployment service: %w", err)
 	}
 	governanceQuery, err := domainsquery.NewService(domainService, dnsService, issuerService)
 	if err != nil {
@@ -129,6 +151,7 @@ func Build(opts Options) (Result, error) {
 		AuthService:       authService,
 		AuthContextQuery:  authContextService,
 		AgentTransport:    agentTransportService,
+		DeploymentService: deploymentService,
 		CertificateAssets: certificateassetscmd.NewService(workflowCommandService),
 		DomainCommands:    domainscmd.NewService(domainService, dnsService, domainsAuditRecorder{audit: auditService}),
 		CAAccountCommands: caaccountscmd.NewService(issuerService),

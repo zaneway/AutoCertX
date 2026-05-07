@@ -40,6 +40,7 @@ func TestOpenAPIHasRequiredPaths(t *testing.T) {
 		"/api/v1/auth/me",
 		"/api/v1/domains",
 		"/api/v1/certificate-assets/requests",
+		"/api/v1/certificate-assets/{assetId}/deploy",
 		"/api/v1/ca-accounts/{id}/capabilities",
 		"/api/v1/dns-credentials/{id}/rotate",
 		"/api/v1/deployment-targets",
@@ -265,6 +266,17 @@ func TestContractsCertificateRequestsRequireIdempotency(t *testing.T) {
 	assertPropertyRef(t, properties, "certificate_type", "#/components/schemas/CertificateType")
 	assertPropertyRef(t, properties, "challenge_type", "#/components/schemas/ChallengeType")
 	assertPropertyRef(t, properties, "request_type", "#/components/schemas/CertificateRequestType")
+}
+
+func TestContractsCertificateDeploymentRequiresIdempotency(t *testing.T) {
+	spec := loadJSONFile(t, "openapi.json")
+	schemas := nestedMap(t, nestedMap(t, spec, "components"), "schemas")
+
+	request := nestedMap(t, schemas, "CertificateAssetDeployRequest")
+	assertRequiredFields(t, request, []string{"version_id", "target_id", "idempotency_key"})
+
+	response := nestedMap(t, schemas, "DeploymentAcceptedEnvelope")
+	assertRequiredFields(t, response, []string{"request_id", "status", "deployment_id", "job_id"})
 }
 
 // errorCatalog mirrors the published OpenAPI error catalogue file.

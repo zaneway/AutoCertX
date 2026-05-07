@@ -19,6 +19,7 @@ import (
 	domainsquery "github.com/zaneway/AutoCertX/internal/application/query/domains"
 	jobsquery "github.com/zaneway/AutoCertX/internal/application/query/jobs"
 	settingsquery "github.com/zaneway/AutoCertX/internal/application/query/settings"
+	deploymentservice "github.com/zaneway/AutoCertX/internal/deployment"
 	"github.com/zaneway/AutoCertX/internal/driver/agenttransport"
 	"github.com/zaneway/AutoCertX/internal/platform/buildinfo"
 	"github.com/zaneway/AutoCertX/internal/platform/config"
@@ -33,6 +34,7 @@ type Deps struct {
 	AuthService       *authcommand.Service
 	AuthContextQuery  *authcontextquery.Service
 	AgentTransport    *agenttransport.Service
+	DeploymentService *deploymentservice.Service
 	CertificateAssets *certificateassetscmd.Service
 	DomainCommands    *domainscmd.Service
 	CAAccountCommands *caaccountscmd.Service

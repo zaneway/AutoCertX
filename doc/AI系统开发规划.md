@@ -324,7 +324,7 @@ flowchart LR
 | `T07` | 聚合查询层与控制台读模型               | `Wave 3` | Phase A 已完成 | Phase A 已落地 `dashboard/jobs/domains/settings` 四个 query 模块、控制面 GET 路由切换到 query service、`make test-integration-query` 与 `make ci-task-T07` 基线已补齐，`assets/delivery/discoveries` 与依赖真实资产/发现事实的查询延后到后续任务 |
 | `T08` | ACME、签发工作流与 Challenge 编排   | `Wave 3` | Phase A 已完成 | 已落地 `certificaterequest / issueworkflow / certificateasset` 三个领域基线、fake `ACME/DNS/HTTP-01` 适配器、`start_issue_workflow / continue_issue_workflow` 编排、`/api/v1/certificate-assets/requests` 与 `/api/v1/certificate-assets/{assetId}/renew` 写入口、`make ci-task-T08` 门禁基线；真实 `Let's Encrypt + AliDNS + Agent HTTP-01` 作为 Phase B backlog |
 | `T09` | Agent 管理、部署目标治理与协议         | `Wave 3` | Phase A 已完成 | 已冻结 Agent 能力码、节点状态、Agent job envelope 与结果回传字段；已落地 `agentnode`、`deploymenttarget`、`command/nodes`、`command/targets`、`driver/agenttransport`、`agent/bootstrap`，补齐 `/api/v1/nodes*`、`/api/v1/deployment-targets*` 与 `/agent/v1/*` 五个 transport 端点，`make ci-task-T09` 可执行并通过 |
-| `T10` | NGINX 部署与验证                | `Wave 4` | Phase A 已完成 | 已落地 `internal/agent/deploy/nginx/` 与 `internal/agent/verify/nginx/`，覆盖 PEM/KEY 落地、路径白名单、配置校验、reload、部署后证书指纹验证、失败回滚与 `make ci-task-T10` 门禁基线；控制面 `DeploymentRecord`、审计与资产刷新作为 Phase B |
+| `T10` | NGINX 部署与验证                | `Wave 4` | Phase B 控制面基线已完成 | 已落地 Agent 本地 NGINX 部署/验证，以及控制面 `DeploymentRecord`、`internal/deployment` 编排、`POST /api/v1/certificate-assets/{assetId}/deploy`、Agent progress/complete 回调、证据归档、资产状态刷新与扩展后的 `make ci-task-T10` 门禁；真实 Agent executor 和证书材料解析仍为后续 |
 | `T11` | Tomcat 部署与验证               | `Wave 4` | 未开始 | 等待执行 |
 | `T12` | 发现与认领                      | `Wave 4` | 未开始 | 等待执行 |
 | `T13` | Vue 壳层与共享前端能力              | `Wave 2` | 已完成 | `Vite + Vue 3 + TypeScript` 正式工程入口、登录页、控制台壳层、路由守卫、`Pinia` 登录态、`vue-i18n` 双语、API client、query key、权限映射和 `PermissionGuard` 基线已落地，`make ci-task-T13` 已通过 |
@@ -736,9 +736,14 @@ flowchart LR
   - 已支持 PEM 证书与私钥匹配校验、`allowed_paths` 白名单校验、原子写入抽象、备份/恢复抽象、`nginx -t` 与 reload 命令抽象
   - reload 或验证失败时支持恢复旧证书/私钥并二次执行配置校验与 reload，回滚失败会落到 `rollback_failed`
   - `Makefile` 已补齐 `test-nginx-deploy`、`test-integration-nginx-deploy` 与 `ci-task-T10`
-- Phase B 明确后续：
-  - 将 `deploy_nginx_certificate / verify_nginx_deployment` 映射到 `T09` Agent job payload
-  - 接入控制面 `DeploymentRecord`、审计事件、证据归档和资产版本状态刷新
+- 当前 Phase B 控制面基线已完成：
+  - `internal/domain/deploymentrecord/` 已落地部署记录、幂等创建、dispatch/progress/complete 状态流转、回滚结果映射和冲突处理
+  - `internal/deployment/` 已落地 `StartNGINXDeployment`、`HandleAgentProgress`、`HandleAgentComplete`，完成资产/版本/目标/Agent 校验、`deploy_nginx_certificate` payload 构造和 Agent 派发
+  - 控制面已接入 `POST /api/v1/certificate-assets/{assetId}/deploy`，Agent progress/complete 回调会更新部署记录、写入 evidence，并刷新证书资产 `active / deploy_failed` 状态
+  - `Makefile` 已扩展 `test-deployment`、HTTP 集成测试、OpenAPI 契约验证和 `ci-task-T10`
+- 后续明确不在当前基线内：
+  - 真实 Agent executor 消费 `deploy_nginx_certificate` 并调用 `internal/agent/deploy/nginx`
+  - 证书材料引用 `certificate_ref` 到 PEM/private key 的真实解析与下发策略
 
 ### T11 Tomcat 部署与验证
 

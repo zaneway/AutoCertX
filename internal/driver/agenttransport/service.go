@@ -142,22 +142,26 @@ type DispatchInput struct {
 
 // Options tune the fake transport runtime used in Phase A.
 type Options struct {
-	Clock        func() time.Time
-	NewID        func() string
-	PollInterval time.Duration
-	LeaseTTL     time.Duration
+	Clock              func() time.Time
+	NewID              func() string
+	PollInterval       time.Duration
+	LeaseTTL           time.Duration
+	ProgressCallback   func(context.Context, JobProgressRequest) error
+	CompletionCallback func(context.Context, JobCompleteRequest) error
 }
 
 // Service owns the Phase A pull-style Agent transport contract.
 type Service struct {
-	mu           sync.Mutex
-	nodes        *agentnode.Service
-	now          func() time.Time
-	newID        func() string
-	pollInterval time.Duration
-	leaseTTL     time.Duration
-	jobsByID     map[string]*jobRecord
-	queueByNode  map[string][]string
+	mu                 sync.Mutex
+	nodes              *agentnode.Service
+	now                func() time.Time
+	newID              func() string
+	pollInterval       time.Duration
+	leaseTTL           time.Duration
+	progressCallback   func(context.Context, JobProgressRequest) error
+	completionCallback func(context.Context, JobCompleteRequest) error
+	jobsByID           map[string]*jobRecord
+	queueByNode        map[string][]string
 }
 
 type jobRecord struct {
@@ -194,13 +198,15 @@ func NewService(nodeService *agentnode.Service, opts Options) (*Service, error) 
 	}
 
 	return &Service{
-		nodes:        nodeService,
-		now:          now,
-		newID:        newID,
-		pollInterval: pollInterval,
-		leaseTTL:     leaseTTL,
-		jobsByID:     make(map[string]*jobRecord),
-		queueByNode:  make(map[string][]string),
+		nodes:              nodeService,
+		now:                now,
+		newID:              newID,
+		pollInterval:       pollInterval,
+		leaseTTL:           leaseTTL,
+		progressCallback:   opts.ProgressCallback,
+		completionCallback: opts.CompletionCallback,
+		jobsByID:           make(map[string]*jobRecord),
+		queueByNode:        make(map[string][]string),
 	}, nil
 }
 
@@ -391,7 +397,7 @@ func (s *Service) Poll(_ context.Context, req JobPollRequest) (JobPollResponse, 
 }
 
 // ReportProgress updates the last known Agent-side execution heartbeat.
-func (s *Service) ReportProgress(_ context.Context, nodeID string, jobID string, req JobProgressRequest) error {
+func (s *Service) ReportProgress(ctx context.Context, nodeID string, jobID string, req JobProgressRequest) error {
 	if strings.TrimSpace(nodeID) == "" {
 		return validationError("node_id", "required")
 	}
@@ -413,7 +419,7 @@ func (s *Service) ReportProgress(_ context.Context, nodeID string, jobID string,
 		return nil
 	}
 
-	record.progress = JobProgressRequest{
+	progress := JobProgressRequest{
 		OperationID:     strings.TrimSpace(req.OperationID),
 		Status:          strings.TrimSpace(req.Status),
 		Message:         strings.TrimSpace(req.Message),
@@ -421,12 +427,19 @@ func (s *Service) ReportProgress(_ context.Context, nodeID string, jobID string,
 		ProgressPercent: cloneIntPointer(req.ProgressPercent),
 		Evidence:        cloneEvidence(req.Evidence),
 	}
+	if s.progressCallback != nil {
+		if err := s.progressCallback(ctx, progress); err != nil {
+			return err
+		}
+	}
+
+	record.progress = progress
 	record.job.LeaseExpireAt = s.now().Add(s.leaseTTL)
 	return nil
 }
 
 // CompleteJob records one terminal result for one Agent-side job.
-func (s *Service) CompleteJob(_ context.Context, nodeID string, jobID string, req JobCompleteRequest) error {
+func (s *Service) CompleteJob(ctx context.Context, nodeID string, jobID string, req JobCompleteRequest) error {
 	if strings.TrimSpace(nodeID) == "" {
 		return validationError("node_id", "required")
 	}
@@ -452,9 +465,7 @@ func (s *Service) CompleteJob(_ context.Context, nodeID string, jobID string, re
 		return apperr.New(http.StatusConflict, "RESOURCE_CONFLICT", "resource conflict", apperr.Field("operation_id", "job already completed"))
 	}
 
-	record.completed = true
-	record.completedAt = s.now()
-	record.completion = JobCompleteRequest{
+	completion := JobCompleteRequest{
 		OperationID:          strings.TrimSpace(req.OperationID),
 		ResultStatus:         strings.TrimSpace(req.ResultStatus),
 		ErrorCode:            strings.TrimSpace(req.ErrorCode),
@@ -464,6 +475,15 @@ func (s *Service) CompleteJob(_ context.Context, nodeID string, jobID string, re
 		CompensationRequired: req.CompensationRequired,
 		Evidence:             cloneEvidence(req.Evidence),
 	}
+	if s.completionCallback != nil {
+		if err := s.completionCallback(ctx, completion); err != nil {
+			return err
+		}
+	}
+
+	record.completed = true
+	record.completedAt = s.now()
+	record.completion = completion
 	record.job.LeaseExpireAt = time.Time{}
 	return nil
 }
